@@ -46,4 +46,12 @@ class TokenController extends Controller
             return 'Datos de sesión incorrectos.';
         }
     }
+
+    public static function checkLogin(Request $request){
+        $token = Token::where('id', $request->id)->first();
+
+        if ($token) {
+            # code...
+        }
+    }
 }
