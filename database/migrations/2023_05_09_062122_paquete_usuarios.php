@@ -27,7 +27,6 @@ return new class extends Migration
             $table->foreignId('usuario_id')->constrained()->cascadeOnDelete();
             $table->string('dispositivo', 100);
             $table->string('token', 64);
-            // $table->boolean('recordar')->default(false);
             $table->timestamps();
             $table->unique(['usuario_id', 'dispositivo']);
             $table->index(['usuario_id', 'dispositivo']);
