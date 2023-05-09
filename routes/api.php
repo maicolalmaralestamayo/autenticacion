@@ -17,5 +17,5 @@ Route::controller(UsuarioController::class)->group(function(){
 });
 
 Route::controller(DatoController::class)->group(function(){
-    Route::get('datos', 'index');
+    Route::get('datos', 'index')->middleware('autenticacion');
 });

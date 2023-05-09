@@ -50,8 +50,10 @@ class TokenController extends Controller
     public static function checkLogin(Request $request){
         $token = Token::where('id', $request->id)->first();
 
-        if ($token) {
-            # code...
+        if ($token && Hash::check($request->token, $token->token)) {
+            return true;
+        }else {
+            return false;
         }
     }
 }
