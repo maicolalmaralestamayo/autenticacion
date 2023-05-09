@@ -26,13 +26,13 @@ class UsuarioController extends Controller
         $usuario = Usuario::where('email', $request->email)->first();
         
         if ($usuario && Hash::check($request->passwd, $usuario->passwd)) {
-            return TokenController::insertar($request, $usuario);
+            return TokenController::login($request, $usuario);
         } else {
            return 'Usuario o contraseña incorrectas.';
         }  
     }
 
     public function logout(Request $request){
-        return TokenController::eliminar($request); 
+        return TokenController::logout($request); 
     }
 }

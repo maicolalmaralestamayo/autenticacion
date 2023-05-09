@@ -10,14 +10,13 @@ use Illuminate\Support\Str;
 
 class TokenController extends Controller
 {
-    
     public static function Token(&$valorToken){
         $textoPlano = Str::random(64);
         $valorToken = [ 'textoPlano' => $textoPlano,
                         'textoCifrado' => Hash::make($textoPlano)];
     }
 
-    public static function insertar(Request $request, Usuario $usuario){
+    public static function login(Request $request, Usuario $usuario){
         $token = Token::where('usuario_id', $usuario->id)->
                         where('dispositivo', $request->dispositivo)->first();
 
@@ -35,7 +34,7 @@ class TokenController extends Controller
         return $valorToken['id'].'|'.$valorToken['textoPlano'];
     }
 
-    public static function eliminar(Request $request){
+    public static function logout(Request $request){
         $token = Token::where('id', $request->id)->
                         where('dispositivo', Str::lower($request->dispositivo))->
                         where('usuario_id', $request->usuario_id)->first();

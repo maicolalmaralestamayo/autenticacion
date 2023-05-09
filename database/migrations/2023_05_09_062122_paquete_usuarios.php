@@ -32,11 +32,18 @@ return new class extends Migration
             $table->unique(['usuario_id', 'dispositivo']);
             $table->index(['usuario_id', 'dispositivo']);
         });
+
+        Schema::create('datos', function (Blueprint $table) {
+            $table->id();
+            $table->string('dato');
+            $table->timestamps();
+        });
     }
 
     public function down()
     {
         Schema::dropIfExists('usuarios');
         Schema::dropIfExists('tokens');
+        Schema::dropIfExists('datos');
     }
 };
