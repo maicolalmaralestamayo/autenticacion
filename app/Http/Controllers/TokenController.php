@@ -49,8 +49,12 @@ class TokenController extends Controller
 
     public static function checkLogin(Request $request){
         $tokenBD = Token::where('id', $request->header('id'))->first();
+        
+        $tokenHeader = $request->header('Authorization');
+        $tokenHeader = str_replace('Bearer ', '', $tokenHeader);
 
-        if ($tokenBD && Hash::check($request->header('token'), $tokenBD->token)) {
+        //si el token existe
+        if ($tokenBD && Hash::check($tokenHeader, $tokenBD->token)) {
             return true;
         }else {
             return false;
