@@ -52,7 +52,7 @@ class TokenController extends Controller
         //obtener fecha y hora actual
         $now = now();
         
-        //obtener el token de la Base de Datos
+        //obtener el token de la BD
         $tokenBD = Token::where('id', $request->header('id'))->first();
         
         //obtener token enviado en la cabecera
@@ -64,7 +64,7 @@ class TokenController extends Controller
             $message = 'El token no existe.';
             return false;
         }
-        //si el token de la cebecera no coincide con el token en la Base de Datos
+        //si el token de la cebecera no coincide con el token en la BD
         if (!Hash::check($tokenHeader, $tokenBD->token)) {
             $message = 'El token existe pero no coincide.';
             return false;
@@ -78,14 +78,16 @@ class TokenController extends Controller
         $fechaValida = new DateTime($tokenBD->uso);
         $fechaValida->modify($tokenBD->duracion_larga);
         if ($now > $fechaValida) {
-            $message = 'El token expiró por larga duración.';
+            $tokenBD->delete();
+            $message = 'El token expiró por larga duración y se eliminó.';
             return false;
         }
         //si el tiempo de envío del token es después del planificado como "duracion_corta" en la BD
         $fechaValida = new DateTime($tokenBD->uso);
         $fechaValida->modify($tokenBD->duracion_corta);
         if ($now > $fechaValida) {
-            $message = 'El token expiró por corta duración.';
+            $tokenBD->delete();
+            $message = 'El token expiró por corta duración y se eliminó.';
             return false;
         }
 
