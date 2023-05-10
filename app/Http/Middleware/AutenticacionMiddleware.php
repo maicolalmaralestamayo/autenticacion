@@ -10,10 +10,10 @@ class AutenticacionMiddleware
 {
     public function handle(Request $request, Closure $next)
     {       
-        if (TokenController::checkLogin($request)) {
+        if (TokenController::checkLogin($request, $message)) {
             return $next($request);
         } else {
-            return Response('Debe autenticarse primero.');
+            return Response($message);
         } 
     }
 }
