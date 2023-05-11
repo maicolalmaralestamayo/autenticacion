@@ -53,7 +53,7 @@ class TokenController extends Controller
 
     public static function checkLogin(Request $request, &$message){
         //obtener fecha y hora actual
-        $now = now('America/havana');
+        $now = now('+0400');
         
         //obtener el token de la BD
         $tokenBD = Token::where('id', $request->header('id'))->first();
