@@ -27,11 +27,10 @@ return new class extends Migration
             $table->foreignId('usuario_id')->constrained()->cascadeOnDelete();
             $table->string('dispositivo', 100);
             $table->string('token', 64);
-            $date = now();
-            $table->timestamp('comienzo')->default($date);
-            $table->string('duracion_larga')->default('+1 day');
-            $table->string('duracion_corta')->default('+30 min');
-            $table->timestamp('uso')->default($date);
+            $table->timestamp('comienzo');
+            $table->string('validez_larga', 50)->default('+1 day');
+            $table->string('validez_corta', 50)->default('+30 min');
+            $table->timestamp('uso')->nullable();
             $table->timestamps();
             $table->unique(['usuario_id', 'dispositivo']);
             $table->index(['usuario_id', 'dispositivo']);

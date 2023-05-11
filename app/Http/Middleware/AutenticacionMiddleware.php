@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 class AutenticacionMiddleware
 {
     public function handle(Request $request, Closure $next)
-    {       
+    {   
         if (TokenController::checkLogin($request, $message)) {
             return $next($request);
         } else {

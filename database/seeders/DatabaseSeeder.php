@@ -10,7 +10,7 @@ class DatabaseSeeder extends Seeder
 {
     public function run()
     {
-        Usuario::factory()->create();
+        // Usuario::factory()->create();
         Dato::factory(3)->create();
     }
 }

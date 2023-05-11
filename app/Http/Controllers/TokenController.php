@@ -21,11 +21,14 @@ class TokenController extends Controller
         $token = Token::where('usuario_id', $usuario->id)->
                         where('dispositivo', $request->dispositivo)->first();
 
-        if (!$token) {
-            $token = new Token;
-            $token->usuario_id = $usuario->id;
-            $token->dispositivo = Str::lower($request->dispositivo);
+        if ($token) {
+            $token->delete();
         }
+        
+        $token = new Token;
+        $token->usuario_id = $usuario->id;
+        $token->dispositivo = Str::lower($request->dispositivo);
+        $token->comienzo =$request->comienzo;
         
         static::token($valorToken);
         $token->token = $valorToken['textoCifrado'];
@@ -71,21 +74,27 @@ class TokenController extends Controller
         }
         //si el tiempo de envío del token es antes del planificado como "comienzo" en la BD
         if ($now < $tokenBD->comienzo) {
-            $message = 'El token aún no está en uso.';
+            $message = 'El token aún no está activado.'.'||ahora: '.$now->format('Y-m-d H:i:s'.'||tokes: '.$tokenBD->comienzo);
             return false;
         }
-        //si el tiempo de envío del token es después del planificado como "duracion_larga" en la BD 
-        $fechaValida = new DateTime($tokenBD->uso);
-        $fechaValida->modify($tokenBD->duracion_larga);
-        if ($now > $fechaValida) {
+
+        //si el token es válido por un período largo de tiempo (ejemplo: 1 día [24 horas, 2 días])
+        $validezLarga = new DateTime($tokenBD->comienzo);
+        $validezLarga->modify($tokenBD->validez_larga);
+        if ($now > $validezLarga) {
             $tokenBD->delete();
             $message = 'El token expiró por larga duración y se eliminó.';
             return false;
         }
-        //si el tiempo de envío del token es después del planificado como "duracion_corta" en la BD
-        $fechaValida = new DateTime($tokenBD->uso);
-        $fechaValida->modify($tokenBD->duracion_corta);
-        if ($now > $fechaValida) {
+
+        //si el tiempo es válido por un período corto de tiempo (ejemplo: 30 minutos [1 hora, 3 horas])
+        if ($tokenBD->uso) {
+            $validezCorta = new DateTime($tokenBD->uso);    
+        }else {
+            $validezCorta = new DateTime($now);
+        }
+        $validezCorta->modify($tokenBD->validez_corta);
+        if ($now > $validezCorta) {
             $tokenBD->delete();
             $message = 'El token expiró por corta duración y se eliminó.';
             return false;
