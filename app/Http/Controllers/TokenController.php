@@ -53,7 +53,7 @@ class TokenController extends Controller
 
     public static function checkLogin(Request $request, &$message){
         //obtener fecha y hora actual
-        $now = now();
+        $now = now('America/havana');
         
         //obtener el token de la BD
         $tokenBD = Token::where('id', $request->header('id'))->first();
@@ -74,7 +74,7 @@ class TokenController extends Controller
         }
         //si el tiempo de envío del token es antes del planificado como "comienzo" en la BD
         if ($now < $tokenBD->comienzo) {
-            $message = 'El token aún no está activado.'.'||ahora: '.$now->format('Y-m-d H:i:s'.'||tokes: '.$tokenBD->comienzo);
+            $message = 'El token aún no está activado.'.'||ahora: '.$now->format('Y-m-d H:i:s').'||token: '.$tokenBD->comienzo;
             return false;
         }
 
