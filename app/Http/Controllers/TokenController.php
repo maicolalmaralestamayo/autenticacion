@@ -12,15 +12,15 @@ use Illuminate\Support\Str;
 
 class TokenController extends Controller
 {
-    public static function Token($algoritmo, $tipo='JWT', $emisor='cdasi', $idUsuario, $dispositivo, $fechaExpiracion, $fechaValidez, $fechaCreacion, $idToken){
+    public static function Token($algoritmo, $tipo, $emisor, $idUsuario, $dispositivo, $fechaCreacion, $fechaValidez,  $fechaExpiracion, $idToken){
         $header = json_encode([ 'alg' => $algoritmo,
                                 'typ' => $tipo]);
 
         $payload = json_encode(['iss' => $emisor,
                                 'sub' => $idUsuario,
                                 'aud' => $dispositivo,
-                                'exp' => $fechaExpiracion,//numeric date
-                                'bnf' => $fechaValidez,//numeric date
+                                'exp' => $fechaExpiracion,
+                                'nbf' => $fechaValidez,
                                 'iat' => $fechaCreacion,
                                 'jti' => $idToken
                                 ]);
@@ -39,19 +39,22 @@ class TokenController extends Controller
                         where('dispositivo', $request->dispositivo)->first();
         if ($token) {$token->delete();}
         
-        //si no existe el token, SE CREA, con el campo TOKEN NULL POR DEFECTO
+        //si no existe el token (o se eliminó), SE CREA, con el campo TOKEN NULL POR DEFECTO
         $token = new Token;
         $token->usuario_id = $usuario->id;//OBLIGATORIO
         $token->dispositivo = Str::lower($request->dispositivo);//OBLIGATORIO
-        $token->comienzo = $request->comienzo;//OBLIGATORIO
-        if ($request->validez_larga) {$token->validez_larga;}//NULLABLE PERO LLENO POR DEFECTO (.env)
-        if ($request->validez_corta) {$token->validez_corta;}//NULLABLE PERO LLENO POR DEFECTO (.env)
+        $token->comienzo = $request->comienzo? : now();//OBLIGATORIO
+        $token->validez_larga = $request->validez_larga? : env('VALIDEZ_LARGA', '+1 day');
+        $token->validez_corta = $request->validez_corta? : env('VALIDEZ_CORTA', '+30 min');
+        $token->save();
+
+        //se actualiza el campo TOKEN
+        $validezLarga = new DateTime($token->comienzo);
+        $validezLarga->modify($token->validez_larga);
+        $token->token = static::Token(env('ALGORITMO', 'HS256'), env('TIPO', 'JWT'), env('EMISOR', 'cdasi'), $token->usuario_id, $token->dispositivo, strtotime($token->created_at), strtotime($token->comienzo), strtotime($validezLarga->format('Y-m-d H:i:s')), $token->id);
         $token->save();
         
-        //después de creado el token, SE ACTUALIZA EL CAMPO TOKEN
-        $token->token = static::Token(env('ALGORTIMO', 'HS256'), env('TIPO', 'JWT'), env('EMISOR', 'cdasi'), $token->usuario_id, $token->dispositivo, strtotime($token->comienzo), strtotime($token->validez_larga)+10, now(), $token->id);
-        $token->save();
-        
+        //se devuelve el token
         return $token->token;
     }
 
