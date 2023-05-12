@@ -11,27 +11,24 @@ use Illuminate\Support\Str;
 
 class TokenController extends Controller
 {
-    public static function Token(&$valorToken){
-        $header = json_encode([ 'alg' => 'HS256',
-                                'typ' => 'JWT']);
+    public static function Token($alg='HS256', $typ='JWT', $iss='cdasi', $sub, $aud, $exp, $bnf, $iat, $jti){
+        $header = json_encode([ 'alg' => $alg,
+                                'typ' => $typ]);
 
-        $payload = json_encode(['iss' => 'cdasi',
-                                'sub' => 'id_persona',
-                                'aud' => 'dispositivo',
-                                'exp' => 'validez_larga',//numeric date
-                                'bnf' => 'comienzo',//numeric date
-                                'iat' => 'created_at',
-                                'jti' => 'id_token'
+        $payload = json_encode(['iss' => $iss,
+                                'sub' => $sub,
+                                'aud' => $aud,
+                                'exp' => $exp,//numeric date
+                                'bnf' => $bnf,//numeric date
+                                'iat' => $iat,
+                                'jti' => $jti
                                 ]);
 
-        
         $secretKey = env('SECRET_KEY');
         $unsignedToken = base64_encode($header).'.'.base64_encode($payload);
         $signature = hash_hmac('sha256', $unsignedToken, $secretKey);
         
-        $textoPlano = Str::random(64);
-        $valorToken = [ 'textoPlano' => $textoPlano,
-                        'textoCifrado' => Hash::make($textoPlano)];
+        return $unsignedToken.'.'.$signature;
     }
 
     public static function login(Request $request, Usuario $usuario){
@@ -44,8 +41,13 @@ class TokenController extends Controller
         $token->usuario_id = $usuario->id;
         $token->dispositivo = Str::lower($request->dispositivo);
         $token->comienzo =$request->comienzo;
+        if ($request->validez_larga) {
+            $token->validez_larga;
+        }
         
-        static::token($valorToken);
+        return static::token();
+        
+        
         $token->token = $valorToken['textoCifrado'];
         $token->save();
         

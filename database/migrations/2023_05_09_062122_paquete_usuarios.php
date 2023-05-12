@@ -26,7 +26,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('usuario_id')->constrained()->cascadeOnDelete();
             $table->string('dispositivo', 100);
-            $table->string('token', 64);
+            $table->text('token')->nullable();
             $table->timestamp('comienzo');
             $table->string('validez_larga', 50)->default('+1 day');
             $table->string('validez_corta', 50)->default('+30 min');
