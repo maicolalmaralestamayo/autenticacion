@@ -6,53 +6,53 @@ use App\Models\Token;
 use App\Models\Usuario;
 use DateTime;
 use Illuminate\Http\Request;
+use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class TokenController extends Controller
 {
-    public static function Token($alg='HS256', $typ='JWT', $iss='cdasi', $sub, $aud, $exp, $bnf, $iat, $jti){
-        $header = json_encode([ 'alg' => $alg,
-                                'typ' => $typ]);
+    public static function Token($algoritmo, $tipo='JWT', $emisor='cdasi', $idUsuario, $dispositivo, $fechaExpiracion, $fechaValidez, $fechaCreacion, $idToken){
+        $header = json_encode([ 'alg' => $algoritmo,
+                                'typ' => $tipo]);
 
-        $payload = json_encode(['iss' => $iss,
-                                'sub' => $sub,
-                                'aud' => $aud,
-                                'exp' => $exp,//numeric date
-                                'bnf' => $bnf,//numeric date
-                                'iat' => $iat,
-                                'jti' => $jti
+        $payload = json_encode(['iss' => $emisor,
+                                'sub' => $idUsuario,
+                                'aud' => $dispositivo,
+                                'exp' => $fechaExpiracion,//numeric date
+                                'bnf' => $fechaValidez,//numeric date
+                                'iat' => $fechaCreacion,
+                                'jti' => $idToken
                                 ]);
 
         $secretKey = env('SECRET_KEY');
         $unsignedToken = base64_encode($header).'.'.base64_encode($payload);
         $signature = hash_hmac('sha256', $unsignedToken, $secretKey);
+        $token = $unsignedToken.'.'.$signature;
         
-        return $unsignedToken.'.'.$signature;
+        return $token;
     }
 
     public static function login(Request $request, Usuario $usuario){
+        //si previamente existe un token para un usuario con un dispositivo, SE ELIMINA
         $token = Token::where('usuario_id', $usuario->id)->
                         where('dispositivo', $request->dispositivo)->first();
-
         if ($token) {$token->delete();}
         
+        //si no existe el token, SE CREA, con el campo TOKEN NULL POR DEFECTO
         $token = new Token;
-        $token->usuario_id = $usuario->id;
-        $token->dispositivo = Str::lower($request->dispositivo);
-        $token->comienzo =$request->comienzo;
-        if ($request->validez_larga) {
-            $token->validez_larga;
-        }
-        
-        return static::token();
-        
-        
-        $token->token = $valorToken['textoCifrado'];
+        $token->usuario_id = $usuario->id;//OBLIGATORIO
+        $token->dispositivo = Str::lower($request->dispositivo);//OBLIGATORIO
+        $token->comienzo = $request->comienzo;//OBLIGATORIO
+        if ($request->validez_larga) {$token->validez_larga;}//NULLABLE PERO LLENO POR DEFECTO (.env)
+        if ($request->validez_corta) {$token->validez_corta;}//NULLABLE PERO LLENO POR DEFECTO (.env)
         $token->save();
         
-        $valorToken['id'] = $token->id;
-        return $valorToken['id'].'|'.$valorToken['textoPlano'];
+        //después de creado el token, SE ACTUALIZA EL CAMPO TOKEN
+        $token->token = static::Token(env('ALGORTIMO', 'HS256'), env('TIPO', 'JWT'), env('EMISOR', 'cdasi'), $token->usuario_id, $token->dispositivo, strtotime($token->comienzo), strtotime($token->validez_larga)+10, now(), $token->id);
+        $token->save();
+        
+        return $token->token;
     }
 
     public static function logout(Request $request){
