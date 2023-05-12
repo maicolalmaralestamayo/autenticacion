@@ -12,6 +12,23 @@ use Illuminate\Support\Str;
 class TokenController extends Controller
 {
     public static function Token(&$valorToken){
+        $header = json_encode([ 'alg' => 'HS256',
+                                'typ' => 'JWT']);
+
+        $payload = json_encode(['iss' => 'cdasi',
+                                'sub' => 'id_persona',
+                                'aud' => 'dispositivo',
+                                'exp' => 'validez_larga',//numeric date
+                                'bnf' => 'comienzo',//numeric date
+                                'iat' => 'created_at',
+                                'jti' => 'id_token'
+                                ]);
+
+        
+        $secretKey = env('SECRET_KEY');
+        $unsignedToken = base64_encode($header).'.'.base64_encode($payload);
+        $signature = hash_hmac('sha256', $unsignedToken, $secretKey);
+        
         $textoPlano = Str::random(64);
         $valorToken = [ 'textoPlano' => $textoPlano,
                         'textoCifrado' => Hash::make($textoPlano)];
@@ -21,9 +38,7 @@ class TokenController extends Controller
         $token = Token::where('usuario_id', $usuario->id)->
                         where('dispositivo', $request->dispositivo)->first();
 
-        if ($token) {
-            $token->delete();
-        }
+        if ($token) {$token->delete();}
         
         $token = new Token;
         $token->usuario_id = $usuario->id;
