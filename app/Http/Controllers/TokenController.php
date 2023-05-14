@@ -13,10 +13,10 @@ use Illuminate\Support\Str;
 class TokenController extends Controller
 {
     public static function Token($algoritmo, $tipo, $emisor, $idUsuario, $dispositivo, $fechaCreacion, $fechaValidez,  $fechaExpiracion, $idToken){
-        $header = json_encode([ 'alg' => $algoritmo,
+        $headerToken = json_encode([ 'alg' => $algoritmo,
                                 'typ' => $tipo]);
 
-        $payload = json_encode(['iss' => $emisor,
+        $payloadToken = json_encode(['iss' => $emisor,
                                 'sub' => $idUsuario,
                                 'aud' => $dispositivo,
                                 'exp' => $fechaExpiracion,
@@ -25,10 +25,11 @@ class TokenController extends Controller
                                 'jti' => $idToken
                                 ]);
 
-        $secretKey = env('SECRET_KEY');
-        $unsignedToken = base64_encode($header).'.'.base64_encode($payload);
-        $signature = hash_hmac('sha256', $unsignedToken, $secretKey);
-        $token = $unsignedToken.'.'.$signature;
+        $secretKeyApk = env('SECRET_KEY');
+        $unsignedToken = base64_encode($headerToken).'.'.base64_encode($payloadToken);
+        $signatureToken = hash_hmac('sha256', $unsignedToken, $secretKeyApk);
+        
+        $token = $unsignedToken.'.'.$signatureToken;
         
         return $token;
     }
@@ -39,16 +40,16 @@ class TokenController extends Controller
                         where('dispositivo', $request->dispositivo)->first();
         if ($token) {$token->delete();}
         
-        //si no existe el token (o se eliminó), SE CREA, con el campo TOKEN NULL POR DEFECTO
+        //si no existe el token (o se eliminó), SE CREA UNO NUEVO, con el campo TOKEN null por defecto
         $token = new Token;
         $token->usuario_id = $usuario->id;//OBLIGATORIO
         $token->dispositivo = Str::lower($request->dispositivo);//OBLIGATORIO
-        $token->comienzo = $request->comienzo? : now();//OBLIGATORIO
-        $token->validez_larga = $request->validez_larga? : env('VALIDEZ_LARGA', '+1 day');
-        $token->validez_corta = $request->validez_corta? : env('VALIDEZ_CORTA', '+30 min');
+        $token->comienzo = $request->comienzo? : now();//OBLIGATORIO pero llenado opcional por defecto
+        $token->validez_larga = $request->validez_larga? : env('VALIDEZ_LARGA', '+1 day');//opcional y llenado por defecto
+        $token->validez_corta = $request->validez_corta? : env('VALIDEZ_CORTA', '+30 min');//opcional y llenado por defecto
         $token->save();
 
-        //se actualiza el campo TOKEN
+        //se conforma el campo TOKEN con la información fija (expiración larga, etc.)
         $validezLarga = new DateTime($token->comienzo);
         $validezLarga->modify($token->validez_larga);
         $token->token = static::Token(env('ALGORITMO', 'HS256'), env('TIPO', 'JWT'), env('EMISOR', 'cdasi'), $token->usuario_id, $token->dispositivo, strtotime($token->created_at), strtotime($token->comienzo), strtotime($validezLarga->format('Y-m-d H:i:s')), $token->id);
@@ -72,33 +73,56 @@ class TokenController extends Controller
     }
 
     public static function checkLogin(Request $request, &$message){
-        //obtener fecha y hora actual
-        $now = now('+0400');
-        
-        //obtener el token de la BD
-        $tokenBD = Token::where('id', $request->header('id'))->first();
-        
         //obtener token enviado en la cabecera
-        $tokenHeader = $request->header('Authorization');
-        $tokenHeader = str_replace('Bearer ', '', $tokenHeader);
+        $tokenRequest = str_replace('Bearer ', '',$request->header('Authorization'));//por norma, los JWT se envían con la palabra Bearer delante, y hay que eliminarla
+        if (!$tokenRequest) {
+            $message = 'Petición sin token.';
+            return false;
+        }
+
+        //fragmentación en partes del token que viajó en la petición
+        $tokenRequest = explode('.',$tokenRequest, 3);
+        $headerToken = $tokenRequest[0];
+        $payloadToken = $tokenRequest[1];
+        $signatureToken = $tokenRequest[2];
+        $unsignedToken = $headerToken.'.'.$payloadToken;
+        
+        //decodificación del token
+        $headerTokenDecod = json_decode(base64_decode($headerToken));
+        $payloadTokenDecod = json_decode(base64_decode($payloadToken));
+
+        //verificación de la integridad del token en la petición
+        $secretKeyApk = env('SECRET_KEY');
+        $alg = $headerTokenDecod->alg;
+        $signatureToken2 = hash_hmac($alg, $unsignedToken, $secretKeyApk);
+        if ($signatureToken != $signatureToken2) {
+            $message = 'Token corrupto en la petición.';
+            return false;
+        }
+
+        // obtener el token de la BD
+        $tokenBD = Token::  where('usuario_id', $payloadTokenDecod->sub)->
+                            where('dispositivo', $payloadTokenDecod->aud)->
+                            where('comienzo', date('Y-m-d H:i:s', $payloadTokenDecod->nbf))->
+                            // where('created_at', date('Y-m-d H:i:s', $payloadTokenDecod->iat))->
+                            where('id', $payloadTokenDecod->jti)->first();
 
         //si no existe el token en la BD
         if (!$tokenBD) {
-            $message = 'El token no existe.';
-            return false;
-        }
-        //si el token de la cebecera no coincide con el token en la BD
-        if (!Hash::check($tokenHeader, $tokenBD->token)) {
-            $message = 'El token existe pero no coincide.';
-            return false;
-        }
-        //si el tiempo de envío del token es antes del planificado como "comienzo" en la BD
-        if ($now < $tokenBD->comienzo) {
-            $message = 'El token aún no está activado.'.'||ahora: '.$now->format('Y-m-d H:i:s').'||token: '.$tokenBD->comienzo;
+            $message = base64_decode($payloadToken);
             return false;
         }
 
-        //si el token es válido por un período largo de tiempo (ejemplo: 1 día [24 horas, 2 días])
+        //realizar otras verificaciones de tiempo
+        $now = now();
+
+        //si el tiempo de envío del token es antes del planificado
+        if ($now < $tokenBD->comienzo) {
+            $message = 'El token aún no está activado.';
+            return false;
+        }
+
+        //si el token perdió la validez larga
         $validezLarga = new DateTime($tokenBD->comienzo);
         $validezLarga->modify($tokenBD->validez_larga);
         if ($now > $validezLarga) {
@@ -107,7 +131,7 @@ class TokenController extends Controller
             return false;
         }
 
-        //si el tiempo es válido por un período corto de tiempo (ejemplo: 30 minutos [1 hora, 3 horas])
+        //si el token perdió la validez corta
         if ($tokenBD->uso) {
             $validezCorta = new DateTime($tokenBD->uso);    
         }else {
@@ -125,5 +149,5 @@ class TokenController extends Controller
         $tokenBD->save();
         $message = 'Todo correcto.';
         return true;
-    }
+        }
 }
