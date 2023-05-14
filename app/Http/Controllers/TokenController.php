@@ -44,7 +44,7 @@ class TokenController extends Controller
         $token = new Token;
         $token->usuario_id = $usuario->id;//OBLIGATORIO
         $token->dispositivo = Str::lower($request->dispositivo);//OBLIGATORIO
-        $token->comienzo = $request->comienzo? : now();//OBLIGATORIO pero llenado opcional por defecto
+        $token->comienzo = $request->comienzo? : now('America/Havana');//OBLIGATORIO pero llenado opcional por defecto
         $token->validez_larga = $request->validez_larga? : env('VALIDEZ_LARGA', '+1 day');//opcional y llenado por defecto
         $token->validez_corta = $request->validez_corta? : env('VALIDEZ_CORTA', '+30 min');//opcional y llenado por defecto
         $token->save();
@@ -114,7 +114,7 @@ class TokenController extends Controller
         }
 
         //realizar otras verificaciones de tiempo
-        $now = now();
+        $now = now('America/Havana');
 
         //si el tiempo de envío del token es antes del planificado
         if ($now < $tokenBD->comienzo) {
