@@ -44,15 +44,15 @@ class TokenController extends Controller
         $token = new Token;
         $token->usuario_id = $usuario->id;//OBLIGATORIO
         $token->dispositivo = Str::lower($request->dispositivo);//OBLIGATORIO
-        $token->comienzo = $request->comienzo? : now('America/Havana');//OBLIGATORIO pero llenado opcional por defecto
-        $token->validez_larga = $request->validez_larga? : env('VALIDEZ_LARGA', '+1 day');//opcional y llenado por defecto
-        $token->validez_corta = $request->validez_corta? : env('VALIDEZ_CORTA', '+30 min');//opcional y llenado por defecto
+        $token->comienzo = $request->comienzo? : now();//llenado por defecto
+        $token->validez_larga = $request->validez_larga? : env('VALIDEZ_LARGA', '+1 day');//llenado por defecto
+        $token->validez_corta = $request->validez_corta? : env('VALIDEZ_CORTA', '+30 min');//llenado por defecto
         $token->save();
 
         //se conforma el campo TOKEN con la información fija (expiración larga, etc.)
         $validezLarga = new DateTime($token->comienzo);
         $validezLarga->modify($token->validez_larga);
-        $token->token = static::Token(env('ALGORITMO', 'HS256'), env('TIPO', 'JWT'), env('EMISOR', 'cdasi'), $token->usuario_id, $token->dispositivo, strtotime($token->created_at), strtotime($token->comienzo), strtotime($validezLarga->format('Y-m-d H:i:s')), $token->id);
+        $token->token = static::Token(env('ALGORITMO', 'sha256'), env('TIPO', 'JWT'), env('EMISOR', 'cdasi'), $token->usuario_id, $token->dispositivo, strtotime($token->created_at), strtotime($token->comienzo), strtotime($validezLarga->format('Y-m-d H:i:s')), $token->id);
         $token->save();
         
         //se devuelve el token
@@ -91,6 +91,9 @@ class TokenController extends Controller
         $headerTokenDecod = json_decode(base64_decode($headerToken));
         $payloadTokenDecod = json_decode(base64_decode($payloadToken));
 
+        $message = base64_decode($headerToken);
+        return false;
+
         //verificación de la integridad del token en la petición
         $secretKeyApk = env('SECRET_KEY');
         $alg = $headerTokenDecod->alg;
@@ -104,17 +107,22 @@ class TokenController extends Controller
         $tokenBD = Token::  where('usuario_id', $payloadTokenDecod->sub)->
                             where('dispositivo', $payloadTokenDecod->aud)->
                             where('comienzo', date('Y-m-d H:i:s', $payloadTokenDecod->nbf))->
-                            // where('created_at', date('Y-m-d H:i:s', $payloadTokenDecod->iat))->
+                            where('created_at', date('Y-m-d H:i:s', $payloadTokenDecod->iat))->
                             where('id', $payloadTokenDecod->jti)->first();
 
+        // $message = base64_decode($payloadToken);
+        // $message = now()->toDateTimeString();
+        // return false;
+        
         //si no existe el token en la BD
         if (!$tokenBD) {
-            $message = base64_decode($payloadToken);
+            $message = 'Token corrupto en la BD.';
+            // $message = base64_decode($payloadToken);
             return false;
         }
 
         //realizar otras verificaciones de tiempo
-        $now = now('America/Havana');
+        $now = now()->toDateTimeString();
 
         //si el tiempo de envío del token es antes del planificado
         if ($now < $tokenBD->comienzo) {
