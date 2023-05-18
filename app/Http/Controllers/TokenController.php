@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Throwable;
 
 class TokenController extends Controller
 {
@@ -52,10 +53,11 @@ class TokenController extends Controller
         //se conforma el campo TOKEN con la información fija (expiración larga, etc.)
         $validezLarga = new DateTime($token->comienzo);
         $validezLarga->modify($token->validez_larga);
-        $token->token = static::Token(env('ALGORITMO', 'sha256'), env('TIPO', 'JWT'), env('EMISOR', 'cdasi'), $token->usuario_id, $token->dispositivo, strtotime($token->created_at), strtotime($token->comienzo), strtotime($validezLarga->format('Y-m-d H:i:s')), $token->id);
+        // return $validezLarga->format('c');
+        $token->token = static::Token(env('ALGORITMO', 'sha256'), env('TIPO', 'JWT'), env('EMISOR', 'cdasi'), $token->usuario_id, $token->dispositivo, $token->created_at->format('U'), $token->comienzo->format('U'), $validezLarga->format('U'), $token->id);
+        $token->uso = now();
         $token->save();
         
-        //se devuelve el token
         return $token->token;
     }
 
@@ -81,48 +83,47 @@ class TokenController extends Controller
         }
 
         //fragmentación en partes del token que viajó en la petición
-        $tokenRequest = explode('.',$tokenRequest, 3);
-        $headerToken = $tokenRequest[0];
-        $payloadToken = $tokenRequest[1];
-        $signatureToken = $tokenRequest[2];
+        $tokenFragment = explode('.',$tokenRequest, 3);
+        $headerToken = $tokenFragment[0];
+        $payloadToken = $tokenFragment[1];
+        $signatureToken = $tokenFragment[2];
         $unsignedToken = $headerToken.'.'.$payloadToken;
         
         //decodificación del token
         $headerTokenDecod = json_decode(base64_decode($headerToken));
         $payloadTokenDecod = json_decode(base64_decode($payloadToken));
 
-        $message = base64_decode($headerToken);
-        return false;
-
-        //verificación de la integridad del token en la petición
-        $secretKeyApk = env('SECRET_KEY');
-        $alg = $headerTokenDecod->alg;
+        try {
+            $secretKeyApk = env('SECRET_KEY');
+            $alg = $headerTokenDecod->alg;
+        } catch (Throwable $th) {
+            $message = 'Token muy corrupto en la petición';
+            return false;
+        }
+        
         $signatureToken2 = hash_hmac($alg, $unsignedToken, $secretKeyApk);
         if ($signatureToken != $signatureToken2) {
             $message = 'Token corrupto en la petición.';
             return false;
         }
 
-        // obtener el token de la BD
-        $tokenBD = Token::  where('usuario_id', $payloadTokenDecod->sub)->
+        // verificar la existencia del token en la BD
+        $tokenBD = Token::  where('token', $tokenRequest)->
+                            where('usuario_id', $payloadTokenDecod->sub)->
                             where('dispositivo', $payloadTokenDecod->aud)->
-                            where('comienzo', date('Y-m-d H:i:s', $payloadTokenDecod->nbf))->
-                            where('created_at', date('Y-m-d H:i:s', $payloadTokenDecod->iat))->
-                            where('id', $payloadTokenDecod->jti)->first();
-
-        // $message = base64_decode($payloadToken);
-        // $message = now()->toDateTimeString();
-        // return false;
+                            where('comienzo', date('c', $payloadTokenDecod->nbf))->
+                            where('created_at', date('c', $payloadTokenDecod->iat))->
+                            where('id', $payloadTokenDecod->jti)->
+                            first();
         
         //si no existe el token en la BD
         if (!$tokenBD) {
-            $message = 'Token corrupto en la BD.';
-            // $message = base64_decode($payloadToken);
+            $message = 'Token inexistente o corrupto en la BD.';
             return false;
         }
 
-        //realizar otras verificaciones de tiempo
-        $now = now()->toDateTimeString();
+        //realizar verificaciones de tiempo
+        $now = now();
 
         //si el tiempo de envío del token es antes del planificado
         if ($now < $tokenBD->comienzo) {
