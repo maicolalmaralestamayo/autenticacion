@@ -6,10 +6,8 @@ use App\Models\Token;
 use App\Models\Usuario;
 use DateTime;
 use Illuminate\Http\Request;
-use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Throwable;
 
 class TokenController extends Controller
 {
@@ -45,17 +43,15 @@ class TokenController extends Controller
         $token = new Token;
         $token->usuario_id = $usuario->id;//OBLIGATORIO
         $token->dispositivo = Str::lower($request->dispositivo);//OBLIGATORIO
-        $token->comienzo = $request->comienzo? : now();//llenado por defecto
-        $token->validez_larga = $request->validez_larga? : env('VALIDEZ_LARGA', '+1 day');//llenado por defecto
-        $token->validez_corta = $request->validez_corta? : env('VALIDEZ_CORTA', '+30 min');//llenado por defecto
+        $token->comienzo = $request->comienzo? : now();//opcional pero llenado obligatorio por defecto
+        $token->validez_larga = $request->validez_larga? : env('VALIDEZ_LARGA', '+1 day');//idem
+        $token->validez_corta = $request->validez_corta? : env('VALIDEZ_CORTA', '+30 min');//idem
         $token->save();
 
         //se conforma el campo TOKEN con la información fija (expiración larga, etc.)
         $validezLarga = new DateTime($token->comienzo);
         $validezLarga->modify($token->validez_larga);
-        // return $validezLarga->format('c');
         $token->token = static::Token(env('ALGORITMO', 'sha256'), env('TIPO', 'JWT'), env('EMISOR', 'cdasi'), $token->usuario_id, $token->dispositivo, $token->created_at->format('U'), $token->comienzo->format('U'), $validezLarga->format('U'), $token->id);
-        $token->uso = now();
         $token->save();
         
         return $token->token;
@@ -76,7 +72,7 @@ class TokenController extends Controller
 
     public static function checkLogin(Request $request, &$message){
         //obtener token enviado en la cabecera
-        $tokenRequest = str_replace('Bearer ', '',$request->header('Authorization'));//por norma, los JWT se envían con la palabra Bearer delante, y hay que eliminarla
+        $tokenRequest = str_replace('Bearer ', '',$request->header('Authorization'));
         if (!$tokenRequest) {
             $message = 'Petición sin token.';
             return false;
@@ -93,13 +89,8 @@ class TokenController extends Controller
         $headerTokenDecod = json_decode(base64_decode($headerToken));
         $payloadTokenDecod = json_decode(base64_decode($payloadToken));
 
-        try {
-            $secretKeyApk = env('SECRET_KEY');
-            $alg = $headerTokenDecod->alg;
-        } catch (Throwable $th) {
-            $message = 'Token muy corrupto en la petición';
-            return false;
-        }
+        $secretKeyApk = env('SECRET_KEY');
+        $alg = $headerTokenDecod->alg;
         
         $signatureToken2 = hash_hmac($alg, $unsignedToken, $secretKeyApk);
         if ($signatureToken != $signatureToken2) {
@@ -141,11 +132,7 @@ class TokenController extends Controller
         }
 
         //si el token perdió la validez corta
-        if ($tokenBD->uso) {
-            $validezCorta = new DateTime($tokenBD->uso);    
-        }else {
-            $validezCorta = new DateTime($now);
-        }
+        $validezCorta = $tokenBD->uso? new DateTime($tokenBD->uso) : new DateTime($now);      
         $validezCorta->modify($tokenBD->validez_corta);
         if ($now > $validezCorta) {
             $tokenBD->delete();
@@ -153,10 +140,9 @@ class TokenController extends Controller
             return false;
         }
 
-        //si llegó la ejecución hasta aquí es que todo está OK. Se actualiza la última vez que se utilizó el token
-        $tokenBD->uso = $now;
+        //si llegó la ejecución hasta aquí es que todo está OK. 
+        $tokenBD->uso = $now;//Se actualiza la última vez que se utilizó el token
         $tokenBD->save();
-        $message = 'Todo correcto.';
         return true;
-        }
+    }
 }
