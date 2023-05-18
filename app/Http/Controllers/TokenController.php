@@ -74,7 +74,7 @@ class TokenController extends Controller
         //obtener token enviado en la cabecera
         $tokenRequest = str_replace('Bearer ', '',$request->header('Authorization'));
         if (!$tokenRequest) {
-            $message = 'Petición sin token.';
+            $message = 'Solicitud de incio de sesión incorrecta.';
             return false;
         }
 
@@ -94,7 +94,7 @@ class TokenController extends Controller
         
         $signatureToken2 = hash_hmac($alg, $unsignedToken, $secretKeyApk);
         if ($signatureToken != $signatureToken2) {
-            $message = 'Token corrupto en la petición.';
+            $message = 'Problemas de sesión identificados en la petición.';
             return false;
         }
 
@@ -109,7 +109,7 @@ class TokenController extends Controller
         
         //si no existe el token en la BD
         if (!$tokenBD) {
-            $message = 'Token inexistente o corrupto en la BD.';
+            $message = 'Problemas de sesión identificados en la Base de Datos.';
             return false;
         }
 
@@ -118,7 +118,7 @@ class TokenController extends Controller
 
         //si el tiempo de envío del token es antes del planificado
         if ($now < $tokenBD->comienzo) {
-            $message = 'El token aún no está activado.';
+            $message = 'Todavía es imposible inciar su sesión.';
             return false;
         }
 
@@ -127,7 +127,7 @@ class TokenController extends Controller
         $validezLarga->modify($tokenBD->validez_larga);
         if ($now > $validezLarga) {
             $tokenBD->delete();
-            $message = 'El token expiró por larga duración y se eliminó.';
+            $message = 'Por seguridad cerramos su sesión de forma obligatoria y forzada después de varias horas.';
             return false;
         }
 
@@ -136,7 +136,7 @@ class TokenController extends Controller
         $validezCorta->modify($tokenBD->validez_corta);
         if ($now > $validezCorta) {
             $tokenBD->delete();
-            $message = 'El token expiró por corta duración y se eliminó.';
+            $message = 'Cerramos su sesión porque llevaba varios minutos sin utilizar la aplicación.';
             return false;
         }
 
