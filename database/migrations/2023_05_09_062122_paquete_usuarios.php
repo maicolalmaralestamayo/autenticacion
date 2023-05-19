@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Env;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -27,12 +26,17 @@ return new class extends Migration
             $table->id();
             $table->foreignId('usuario_id')->constrained()->cascadeOnDelete();
             $table->string('dispositivo', 100);
-            $table->text('token')->nullable()->default(null);
+           
+            $table->datetime('created_at');
+            $table->datetime('updated_at');
+            $table->timestamp('used_at')->nullable()->default(null);
+
             $table->datetime('comienzo');
             $table->string('validez_larga', 50)->default(env('VALIDEZ_LARGA', '+1 day'));
             $table->string('validez_corta', 50)->default(env('VALIDEZ_CORTA', '+30 min'));
-            $table->timestamp('uso')->nullable()->default(null);
-            $table->timestamps();
+
+            $table->text('token')->nullable()->default(null);
+
             $table->unique(['usuario_id', 'dispositivo']);
             $table->index(['usuario_id', 'dispositivo']);
         });

@@ -12,17 +12,16 @@ use Illuminate\Support\Str;
 class TokenController extends Controller
 {
     public static function Token($algoritmo, $tipo, $emisor, $idUsuario, $dispositivo, $fechaCreacion, $fechaValidez,  $fechaExpiracion, $idToken){
-        $headerToken = json_encode([ 'alg' => $algoritmo,
-                                'typ' => $tipo]);
+        $headerToken = json_encode(['alg' => $algoritmo,
+                                    'typ' => $tipo]);
 
-        $payloadToken = json_encode(['iss' => $emisor,
-                                'sub' => $idUsuario,
-                                'aud' => $dispositivo,
-                                'exp' => $fechaExpiracion,
-                                'nbf' => $fechaValidez,
-                                'iat' => $fechaCreacion,
-                                'jti' => $idToken
-                                ]);
+        $payloadToken = json_encode([   'iss' => $emisor,
+                                        'sub' => $idUsuario,
+                                        'aud' => $dispositivo,
+                                        'exp' => $fechaExpiracion,
+                                        'nbf' => $fechaValidez,
+                                        'iat' => $fechaCreacion,
+                                        'jti' => $idToken]);
 
         $secretKeyApk = env('SECRET_KEY');
         $unsignedToken = base64_encode($headerToken).'.'.base64_encode($payloadToken);
@@ -94,7 +93,7 @@ class TokenController extends Controller
         
         $signatureToken2 = hash_hmac($alg, $unsignedToken, $secretKeyApk);
         if ($signatureToken != $signatureToken2) {
-            $message = 'Problemas de sesión identificados en la petición.';
+            $message = 'Problemas en los datos de sesión identificados en la petición.';
             return false;
         }
 
@@ -109,7 +108,7 @@ class TokenController extends Controller
         
         //si no existe el token en la BD
         if (!$tokenBD) {
-            $message = 'Problemas de sesión identificados en la Base de Datos.';
+            $message = 'Problemas en los datos de sesión identificados en la Base de Datos.';
             return false;
         }
 
@@ -127,21 +126,21 @@ class TokenController extends Controller
         $validezLarga->modify($tokenBD->validez_larga);
         if ($now > $validezLarga) {
             $tokenBD->delete();
-            $message = 'Por seguridad cerramos su sesión de forma obligatoria y forzada después de varias horas.';
+            $message = 'Por seguridad cerramos su sesión después de varias horas.';
             return false;
         }
 
         //si el token perdió la validez corta
-        $validezCorta = $tokenBD->uso? new DateTime($tokenBD->uso) : new DateTime($now);      
+        $validezCorta = $tokenBD->used_at? new DateTime($tokenBD->used_at) : new DateTime($now);      
         $validezCorta->modify($tokenBD->validez_corta);
         if ($now > $validezCorta) {
             $tokenBD->delete();
-            $message = 'Cerramos su sesión porque llevaba varios minutos sin utilizar la aplicación.';
+            $message = 'Por seguridad cerramos su sesión después de varios minutos sin utilizar la aplicación.';
             return false;
         }
 
         //si llegó la ejecución hasta aquí es que todo está OK. 
-        $tokenBD->uso = $now;//Se actualiza la última vez que se utilizó el token
+        $tokenBD->used_at = $now;//Se actualiza la última vez que se utilizó el token
         $tokenBD->save();
         return true;
     }
