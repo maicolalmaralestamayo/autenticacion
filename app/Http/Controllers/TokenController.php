@@ -6,7 +6,6 @@ use App\Models\Token;
 use App\Models\Usuario;
 use DateTime;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class TokenController extends Controller
@@ -30,6 +29,65 @@ class TokenController extends Controller
         $token = $unsignedToken.'.'.$signatureToken;
         
         return $token;
+    }
+
+    public static function formatearToken($tokenRequest, &$tokenFormateado, &$message){
+        $tokenFormateado = str_replace('Bearer ', '',$tokenRequest);
+
+        if (!$tokenFormateado) {
+            $message = 'Formato de token inválido.';
+            return false;
+        }else {
+            $message = 'Formato de token válido.';
+            return true;
+        }
+    }
+
+    public static function fragmentarToken($tokenFormateado, &$headerToken, &$payloadToken, &$signatureToken, &$message){
+        $tokenFragment = explode('.',$tokenFormateado, 3);
+        try {
+            $headerToken = $tokenFragment[0];
+            $payloadToken = $tokenFragment[1];
+            $signatureToken = $tokenFragment[2];
+
+            $message = 'Token fragmentado correctamente.';
+            return true;
+        } catch (\Throwable $th) {
+            $message = 'Imposible fragmentar el token.';
+            return true;
+        }
+    }
+
+    public static function decodif64ToJsonToken($fragmento, &$fragmentoDecodif, &$message){
+        try {
+            $fragmentoDecodif = json_decode(base64_decode($fragmento));
+            $message = 'Fragmento decodificado correctamente.';
+            return true;
+        } catch (\Throwable $th) {
+            $message = 'Imposible decodificar frangmento de token.';
+            return true;
+        }
+        
+    }
+
+    public static function ProcesarToken(&$tokenRequest, &$signatureToken, &$unsignedToken, &$headerTokenDecod, &$payloadTokenDecod, &$message){
+        $tokenRequest = str_replace('Bearer ', '',$tokenRequest);
+        if (!$tokenRequest) {
+            $message = 'Formato de token inválido.';
+            return false;
+        } else {
+            $tokenFragment = explode('.',$tokenRequest, 3);
+            $headerToken = $tokenFragment[0];
+            $payloadToken = $tokenFragment[1];
+            $signatureToken = $tokenFragment[2];
+
+            $unsignedToken = $headerToken.'.'.$payloadToken;
+            $headerTokenDecod = json_decode(base64_decode($headerToken));
+            $payloadTokenDecod = json_decode(base64_decode($payloadToken));
+
+            $message = 'Formato de token válido.';
+            return true;
+        }
     }
 
     public static function login(Request $request, Usuario $usuario){
@@ -56,49 +114,45 @@ class TokenController extends Controller
         return $token->token;
     }
 
-    public static function logout(Request $request){
+    public static function logout(Request $request, &$message){
+        
+        
+        
         $token = Token::where('id', $request->id)->
                         where('dispositivo', Str::lower($request->dispositivo))->
-                        where('usuario_id', $request->usuario_id)->first();
+                        where('usuario_id', $request->usuario_id)->
+                        first();
 
-        if ($token && Hash::check($request->token, $token->token)) {
+        if ($token) {
+            $message = 'Sesión cerrada correctamente.';
             $token->delete();
-            return $token;
+            return true;
         }else {
-            return 'Datos de sesión incorrectos.';
+            $message = 'Datos de cierre de sesión incorrectos.';
+            return false;
         }
     }
 
     public static function checkLogin(Request $request, &$message){
-        //obtener token enviado en la cabecera
-        $tokenRequest = str_replace('Bearer ', '',$request->header('Authorization'));
-        if (!$tokenRequest) {
-            $message = 'Solicitud de incio de sesión incorrecta.';
-            return false;
-        }
-
-        //fragmentación en partes del token que viajó en la petición
-        $tokenFragment = explode('.',$tokenRequest, 3);
-        $headerToken = $tokenFragment[0];
-        $payloadToken = $tokenFragment[1];
-        $signatureToken = $tokenFragment[2];
+        //procesar token
+        static::formatearToken($request->header('Authorization'), $tokenFormateado, $message);
+        static::fragmentarToken($tokenFormateado, $headerToken, $payloadToken, $signatureToken, $message);
         $unsignedToken = $headerToken.'.'.$payloadToken;
+        static::decodif64ToJsonToken($headerToken, $headerTokenDecod, $message);
+        static::decodif64ToJsonToken($payloadToken, $payloadTokenDecod, $message);
         
-        //decodificación del token
-        $headerTokenDecod = json_decode(base64_decode($headerToken));
-        $payloadTokenDecod = json_decode(base64_decode($payloadToken));
-
         $secretKeyApk = env('SECRET_KEY');
         $alg = $headerTokenDecod->alg;
         
         $signatureToken2 = hash_hmac($alg, $unsignedToken, $secretKeyApk);
         if ($signatureToken != $signatureToken2) {
-            $message = 'Problemas en los datos de sesión identificados en la petición.';
+            $message = 'Petición inválida.';
             return false;
         }
 
-        // verificar la existencia del token en la BD
-        $tokenBD = Token::  where('token', $tokenRequest)->
+        // verificar la existencia del token en la BD y la correspondencia entra la información
+        //que porta y la información almacenada en la BD
+        $tokenBD = Token::  where('token', $tokenFormateado)->
                             where('usuario_id', $payloadTokenDecod->sub)->
                             where('dispositivo', $payloadTokenDecod->aud)->
                             where('comienzo', date('c', $payloadTokenDecod->nbf))->
@@ -106,9 +160,9 @@ class TokenController extends Controller
                             where('id', $payloadTokenDecod->jti)->
                             first();
         
-        //si no existe el token en la BD
+        //si no existe el token en la BD (o no hay correspondencia entre los datos de la petición y la BD)
         if (!$tokenBD) {
-            $message = 'Problemas en los datos de sesión identificados en la Base de Datos.';
+            $message = 'Respuesta inválida.';
             return false;
         }
 
@@ -142,6 +196,7 @@ class TokenController extends Controller
         //si llegó la ejecución hasta aquí es que todo está OK. 
         $tokenBD->used_at = $now;//Se actualiza la última vez que se utilizó el token
         $tokenBD->save();
+
         return true;
     }
 }
