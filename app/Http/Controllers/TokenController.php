@@ -31,63 +31,19 @@ class TokenController extends Controller
         return $token;
     }
 
-    public static function formatearToken($tokenRequest, &$tokenFormateado, &$message){
+    public static function formatearToken($tokenRequest, &$tokenFormateado){
         $tokenFormateado = str_replace('Bearer ', '',$tokenRequest);
-
-        if (!$tokenFormateado) {
-            $message = 'Formato de token inválido.';
-            return false;
-        }else {
-            $message = 'Formato de token válido.';
-            return true;
-        }
     }
 
-    public static function fragmentarToken($tokenFormateado, &$headerToken, &$payloadToken, &$signatureToken, &$message){
+    public static function fragmentarToken($tokenFormateado, &$headerToken, &$payloadToken, &$signatureToken){
         $tokenFragment = explode('.',$tokenFormateado, 3);
-        try {
-            $headerToken = $tokenFragment[0];
-            $payloadToken = $tokenFragment[1];
-            $signatureToken = $tokenFragment[2];
-
-            $message = 'Token fragmentado correctamente.';
-            return true;
-        } catch (\Throwable $th) {
-            $message = 'Imposible fragmentar el token.';
-            return true;
-        }
+        $headerToken = $tokenFragment[0];
+        $payloadToken = $tokenFragment[1];
+        $signatureToken = $tokenFragment[2];
     }
 
-    public static function decodif64ToJsonToken($fragmento, &$fragmentoDecodif, &$message){
-        try {
-            $fragmentoDecodif = json_decode(base64_decode($fragmento));
-            $message = 'Fragmento decodificado correctamente.';
-            return true;
-        } catch (\Throwable $th) {
-            $message = 'Imposible decodificar frangmento de token.';
-            return true;
-        }
-        
-    }
-
-    public static function ProcesarToken(&$tokenRequest, &$signatureToken, &$unsignedToken, &$headerTokenDecod, &$payloadTokenDecod, &$message){
-        $tokenRequest = str_replace('Bearer ', '',$tokenRequest);
-        if (!$tokenRequest) {
-            $message = 'Formato de token inválido.';
-            return false;
-        } else {
-            $tokenFragment = explode('.',$tokenRequest, 3);
-            $headerToken = $tokenFragment[0];
-            $payloadToken = $tokenFragment[1];
-            $signatureToken = $tokenFragment[2];
-
-            $unsignedToken = $headerToken.'.'.$payloadToken;
-            $headerTokenDecod = json_decode(base64_decode($headerToken));
-            $payloadTokenDecod = json_decode(base64_decode($payloadToken));
-
-            $message = 'Formato de token válido.';
-            return true;
-        }
+    public static function decodif64ToJsonToken($fragmento, &$fragmentoDecodif){
+        $fragmentoDecodif = json_decode(base64_decode($fragmento));        
     }
 
     public static function login(Request $request, Usuario $usuario){
@@ -115,7 +71,12 @@ class TokenController extends Controller
     }
 
     public static function logout(Request $request, &$message){
-        
+       //procesar token
+       static::formatearToken($request->header('Authorization'), $tokenFormateado);
+       static::fragmentarToken($tokenFormateado, $headerToken, $payloadToken, $signatureToken);
+    //    $unsignedToken = $headerToken.'.'.$payloadToken;
+    //    static::decodif64ToJsonToken($headerToken, $headerTokenDecod);
+       static::decodif64ToJsonToken($payloadToken, $payloadTokenDecod); 
         
         
         $token = Token::where('id', $request->id)->
@@ -135,15 +96,15 @@ class TokenController extends Controller
 
     public static function checkLogin(Request $request, &$message){
         //procesar token
-        static::formatearToken($request->header('Authorization'), $tokenFormateado, $message);
-        static::fragmentarToken($tokenFormateado, $headerToken, $payloadToken, $signatureToken, $message);
+        static::formatearToken($request->header('Authorization'), $tokenFormateado);
+        static::fragmentarToken($tokenFormateado, $headerToken, $payloadToken, $signatureToken);
         $unsignedToken = $headerToken.'.'.$payloadToken;
-        static::decodif64ToJsonToken($headerToken, $headerTokenDecod, $message);
-        static::decodif64ToJsonToken($payloadToken, $payloadTokenDecod, $message);
+        static::decodif64ToJsonToken($headerToken, $headerTokenDecod);
+        static::decodif64ToJsonToken($payloadToken, $payloadTokenDecod);
         
+        //verificar que el token no esté corrupto
         $secretKeyApk = env('SECRET_KEY');
         $alg = $headerTokenDecod->alg;
-        
         $signatureToken2 = hash_hmac($alg, $unsignedToken, $secretKeyApk);
         if ($signatureToken != $signatureToken2) {
             $message = 'Petición inválida.';
