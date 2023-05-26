@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 
 class TokenController extends Controller
 {
+    //función para conformar el token
     public static function Token($algoritmo, $tipo, $emisor, $idUsuario, $dispositivo, $fechaCreacion, $fechaValidez,  $fechaExpiracion, $idToken){
         $headerToken = json_encode(['alg' => $algoritmo,
                                     'typ' => $tipo]);
@@ -31,17 +32,16 @@ class TokenController extends Controller
         return $token;
     }
 
+    //funciones para procesar el token
     public static function formatearToken($tokenRequest, &$tokenFormateado){
         $tokenFormateado = str_replace('Bearer ', '',$tokenRequest);
     }
-
     public static function fragmentarToken($tokenFormateado, &$headerToken, &$payloadToken, &$signatureToken){
         $tokenFragment = explode('.',$tokenFormateado, 3);
         $headerToken = $tokenFragment[0];
         $payloadToken = $tokenFragment[1];
         $signatureToken = $tokenFragment[2];
     }
-
     public static function decodif64ToJsonToken($fragmento, &$fragmentoDecodif){
         $fragmentoDecodif = json_decode(base64_decode($fragmento));        
     }
@@ -68,30 +68,6 @@ class TokenController extends Controller
         $token->save();
         
         return $token->token;
-    }
-
-    public static function logout(Request $request, &$message){
-       //procesar token
-       static::formatearToken($request->header('Authorization'), $tokenFormateado);
-       static::fragmentarToken($tokenFormateado, $headerToken, $payloadToken, $signatureToken);
-    //    $unsignedToken = $headerToken.'.'.$payloadToken;
-    //    static::decodif64ToJsonToken($headerToken, $headerTokenDecod);
-       static::decodif64ToJsonToken($payloadToken, $payloadTokenDecod); 
-        
-        
-        $token = Token::where('id', $request->id)->
-                        where('dispositivo', Str::lower($request->dispositivo))->
-                        where('usuario_id', $request->usuario_id)->
-                        first();
-
-        if ($token) {
-            $message = 'Sesión cerrada correctamente.';
-            $token->delete();
-            return true;
-        }else {
-            $message = 'Datos de cierre de sesión incorrectos.';
-            return false;
-        }
     }
 
     public static function checkLogin(Request $request, &$message){
@@ -159,5 +135,28 @@ class TokenController extends Controller
         $tokenBD->save();
 
         return true;
+    }
+
+    public static function logout(Request $request, &$message){
+       //procesar token
+       static::formatearToken($request->header('Authorization'), $tokenFormateado);
+       static::fragmentarToken($tokenFormateado, $headerToken, $payloadToken, $signatureToken);
+    //    $unsignedToken = $headerToken.'.'.$payloadToken;
+    //    static::decodif64ToJsonToken($headerToken, $headerTokenDecod);
+       static::decodif64ToJsonToken($payloadToken, $payloadTokenDecod); 
+        
+        $token = Token::where('id', $request->id)->
+                        where('dispositivo', Str::lower($request->dispositivo))->
+                        where('usuario_id', $request->usuario_id)->
+                        first();
+
+        if ($token) {
+            $message = 'Sesión cerrada correctamente.';
+            $token->delete();
+            return true;
+        }else {
+            $message = 'Datos de cierre de sesión incorrectos.';
+            return false;
+        }
     }
 }
