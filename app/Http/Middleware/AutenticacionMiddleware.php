@@ -10,7 +10,8 @@ class AutenticacionMiddleware
 {
     public function handle(Request $request, Closure $next)
     {   
-        if (TokenController::checkLogin($request, $message)) {
+        $token = new TokenController;
+        if ($token->checkLogin($request, $message)) {
             return $next($request);
         } else {
             return Response($message);

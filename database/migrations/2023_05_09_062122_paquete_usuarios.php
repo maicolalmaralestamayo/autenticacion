@@ -28,12 +28,12 @@ return new class extends Migration
             $table->string('dispositivo', 100);
            
             $table->datetime('created_at');
-            $table->datetime('updated_at');
-            $table->timestamp('used_at')->nullable()->default(null);
+            $table->datetime('updated_at')->nullable()->default(null);
+            $table->datetime('used_at')->nullable()->default(null);
 
-            $table->datetime('comienzo');
-            $table->string('validez_larga', 50)->default(env('VALIDEZ_LARGA', '+1 day'));
-            $table->string('validez_corta', 50)->default(env('VALIDEZ_CORTA', '+30 min'));
+            $table->string('validez_ini', 50)->default(env('VALIDEZ_INI', '+0 min'));
+            $table->string('validez_inter', 50)->default(env('VALIDEZ_INTER', '+30 min'));
+            $table->string('validez_fin', 50)->default(env('VALIDEZ_FIN', '+1 day'));
 
             $table->text('token')->nullable()->default(null);
 

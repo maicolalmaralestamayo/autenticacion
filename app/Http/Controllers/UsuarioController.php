@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Hash;
 
 class UsuarioController extends Controller
 {
+    public TokenController $token;
+    
     public function registrar(Request $request){
         $usuario = new Usuario;
         $usuario->nomb1 = $request->nomb1;
@@ -20,19 +22,5 @@ class UsuarioController extends Controller
         $usuario->passwd = Hash::make($request->passwd);
         $usuario->save();
         return $usuario;
-    }
-
-    public function login(Request $request){
-        $usuario = Usuario::where('email', $request->email)->first();
-        
-        if ($usuario && Hash::check($request->passwd, $usuario->passwd)) {
-            return TokenController::login($request, $usuario);
-        } else {
-           return 'Usuario o contraseña incorrectas.';
-        }  
-    }
-
-    public function logout(Request $request){
-        return TokenController::logout($request); 
     }
 }

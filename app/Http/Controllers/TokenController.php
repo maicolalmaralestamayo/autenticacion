@@ -6,12 +6,13 @@ use App\Models\Token;
 use App\Models\Usuario;
 use DateTime;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class TokenController extends Controller
 {
-    //función para conformar el token
-    public static function Token($algoritmo, $tipo, $emisor, $idUsuario, $dispositivo, $fechaCreacion, $fechaValidez,  $fechaExpiracion, $idToken){
+    //conformar el token
+    public function conformarToken($algoritmo, $tipo, $emisor, $idUsuario, $dispositivo, $fechaCreacion, $fechaValidez,  $fechaExpiracion, $idToken){
         $headerToken = json_encode(['alg' => $algoritmo,
                                     'typ' => $tipo]);
 
@@ -32,101 +33,97 @@ class TokenController extends Controller
         return $token;
     }
 
-    //funciones para procesar el token
-    public static function formatearToken($tokenRequest, &$tokenFormateado){
-        $tokenFormateado = str_replace('Bearer ', '',$tokenRequest);
-    }
-    public static function fragmentarToken($tokenFormateado, &$headerToken, &$payloadToken, &$signatureToken){
-        $tokenFragment = explode('.',$tokenFormateado, 3);
-        $headerToken = $tokenFragment[0];
-        $payloadToken = $tokenFragment[1];
-        $signatureToken = $tokenFragment[2];
-    }
-    public static function decodif64ToJsonToken($fragmento, &$fragmentoDecodif){
-        $fragmentoDecodif = json_decode(base64_decode($fragmento));        
-    }
-
-    public static function login(Request $request, Usuario $usuario){
-        //si previamente existe un token para un usuario con un dispositivo, SE ELIMINA
-        $token = Token::where('usuario_id', $usuario->id)->
-                        where('dispositivo', $request->dispositivo)->first();
-        if ($token) {$token->delete();}
+    public function login(Request $request){
+        //validar usuario y contraseña
+        $usuario = Usuario::where('email', $request->email)->first();
+        $passwd = Hash::check($request->passwd, $usuario->passwd);
+        if (!$usuario || !$passwd) {
+            return 'Usuario y/o contraseña incorrectas.';
+        }
         
-        //si no existe el token (o se eliminó), SE CREA UNO NUEVO, con el campo TOKEN null por defecto
+        //cerrar sesión previamente abierta (si existe)
+        Token:: where('usuario_id', $usuario->id)->
+                where('dispositivo', $request->dispositivo)->delete();
+        
+        //abrir una nueva sesión
         $token = new Token;
-        $token->usuario_id = $usuario->id;//OBLIGATORIO
-        $token->dispositivo = Str::lower($request->dispositivo);//OBLIGATORIO
-        $token->comienzo = $request->comienzo? : now();//opcional pero llenado obligatorio por defecto
-        $token->validez_larga = $request->validez_larga? : env('VALIDEZ_LARGA', '+1 day');//idem
-        $token->validez_corta = $request->validez_corta? : env('VALIDEZ_CORTA', '+30 min');//idem
+        $token->usuario_id = $usuario->id;
+        $token->dispositivo = Str::lower($request->dispositivo);
+        $token->validez_ini = $request->validez_ini? : env('VALIDEZ_INI', '+1 min');
+        $token->validez_inter = $request->validez_inter? : env('VALIDEZ_INTER', '+30 min');
+        $token->validez_fin = $request->validez_fin? : env('VALIDEZ_FIN', '+1 day');
         $token->save();
 
-        //se conforma el campo TOKEN con la información fija (expiración larga, etc.)
-        $validezLarga = new DateTime($token->comienzo);
-        $validezLarga->modify($token->validez_larga);
-        $token->token = static::Token(env('ALGORITMO', 'sha256'), env('TIPO', 'JWT'), env('EMISOR', 'cdasi'), $token->usuario_id, $token->dispositivo, $token->created_at->format('U'), $token->comienzo->format('U'), $validezLarga->format('U'), $token->id);
+        //conformar el token
+        $validezIni = new DateTime($token->created_at);
+        $validezIni->modify($token->validez_ini);
+
+        $validezFin = new DateTime($token->created_at);
+        $validezFin->modify($token->validez_fin);
+
+        $token->token = $this->conformarToken(env('ALGORITMO', 'sha256'), env('TIPO', 'JWT'), env('EMISOR', 'cdasi'), $token->usuario_id, $token->dispositivo, $token->created_at->format('U'), $validezIni->format('U'), $validezFin->format('U'), $token->id);
         $token->save();
         
+        //devolver el token ya conformado
         return $token->token;
     }
 
-    public static function checkLogin(Request $request, &$message){
+    public function checkLogin(Request $request, &$message){
         //procesar token
-        static::formatearToken($request->header('Authorization'), $tokenFormateado);
-        static::fragmentarToken($tokenFormateado, $headerToken, $payloadToken, $signatureToken);
-        $unsignedToken = $headerToken.'.'.$payloadToken;
-        static::decodif64ToJsonToken($headerToken, $headerTokenDecod);
-        static::decodif64ToJsonToken($payloadToken, $payloadTokenDecod);
-        
+        $tokenFormateado = str_replace('Bearer ', '',$request->header('Authorization'));
+
+        $tokenFragment = explode('.',$tokenFormateado, 3);
+        $headerToken = $tokenFragment[0];
+        $payloadToken = $tokenFragment[1];
+        $signatureTokenRequest = $tokenFragment[2];
+
         //verificar que el token no esté corrupto
         $secretKeyApk = env('SECRET_KEY');
+        
+        $headerTokenDecod = json_decode(base64_decode($headerToken));
         $alg = $headerTokenDecod->alg;
-        $signatureToken2 = hash_hmac($alg, $unsignedToken, $secretKeyApk);
-        if ($signatureToken != $signatureToken2) {
+        
+        $unsignedToken = $headerToken.'.'.$payloadToken;
+        $signatureToken = hash_hmac($alg, $unsignedToken, $secretKeyApk);
+        
+        if ($signatureTokenRequest != $signatureToken) {
             $message = 'Petición inválida.';
             return false;
         }
 
-        // verificar la existencia del token en la BD y la correspondencia entra la información
-        //que porta y la información almacenada en la BD
-        $tokenBD = Token::  where('token', $tokenFormateado)->
-                            where('usuario_id', $payloadTokenDecod->sub)->
-                            where('dispositivo', $payloadTokenDecod->aud)->
-                            where('comienzo', date('c', $payloadTokenDecod->nbf))->
-                            where('created_at', date('c', $payloadTokenDecod->iat))->
-                            where('id', $payloadTokenDecod->jti)->
-                            first();
-        
-        //si no existe el token en la BD (o no hay correspondencia entre los datos de la petición y la BD)
+        // verificar la existencia del token en la BD
+        $tokenBD = Token::where('token', $tokenFormateado)->first();
         if (!$tokenBD) {
-            $message = 'Respuesta inválida.';
+            $message = 'Sesión inválida.';
             return false;
         }
 
         //realizar verificaciones de tiempo
         $now = now();
 
-        //si el tiempo de envío del token es antes del planificado
-        if ($now < $tokenBD->comienzo) {
-            $message = 'Todavía es imposible inciar su sesión.';
+        //si el token tiene validez inicial (con respecto a la fecha de creación)
+        $validezIni = new DateTime($tokenBD->created_at);
+        $validezIni->modify($tokenBD->validez_ini);
+        if ($now < $validezIni) {
+            $message = 'Inicie sesión en otro momento.';
             return false;
         }
 
-        //si el token perdió la validez larga
-        $validezLarga = new DateTime($tokenBD->comienzo);
-        $validezLarga->modify($tokenBD->validez_larga);
-        if ($now > $validezLarga) {
-            $tokenBD->delete();
-            $message = 'Por seguridad cerramos su sesión después de varias horas.';
-            return false;
-        }
-
-        //si el token perdió la validez corta
-        $validezCorta = $tokenBD->used_at? new DateTime($tokenBD->used_at) : new DateTime($now);      
-        $validezCorta->modify($tokenBD->validez_corta);
-        if ($now > $validezCorta) {
+        //si el token tiene validez intermedia (con respecto a la fecha de uso)
+        $validezInter = $tokenBD->used_at? new DateTime($tokenBD->used_at) : new DateTime($now);      
+        $validezInter->modify($tokenBD->validez_inter);
+        if ($now > $validezInter) {
             $tokenBD->delete();
             $message = 'Por seguridad cerramos su sesión después de varios minutos sin utilizar la aplicación.';
+            return false;
+        }
+
+        //si el token tiene validez final (con respecto a la fecha de creación)
+        $validezFin = new DateTime($tokenBD->created_at);
+        $validezFin->modify($tokenBD->validez_fin);
+        if ($now > $validezFin) {
+            $tokenBD->delete();
+            $message = 'Por seguridad cerramos su sesión despúes de varias horas.';
             return false;
         }
 
@@ -137,26 +134,8 @@ class TokenController extends Controller
         return true;
     }
 
-    public static function logout(Request $request, &$message){
-       //procesar token
-       static::formatearToken($request->header('Authorization'), $tokenFormateado);
-       static::fragmentarToken($tokenFormateado, $headerToken, $payloadToken, $signatureToken);
-    //    $unsignedToken = $headerToken.'.'.$payloadToken;
-    //    static::decodif64ToJsonToken($headerToken, $headerTokenDecod);
-       static::decodif64ToJsonToken($payloadToken, $payloadTokenDecod); 
-        
-        $token = Token::where('id', $request->id)->
-                        where('dispositivo', Str::lower($request->dispositivo))->
-                        where('usuario_id', $request->usuario_id)->
-                        first();
-
-        if ($token) {
-            $message = 'Sesión cerrada correctamente.';
-            $token->delete();
-            return true;
-        }else {
-            $message = 'Datos de cierre de sesión incorrectos.';
-            return false;
-        }
+    public function logout(Token $token){
+        $token->delete();
+        return 'Sesión cerrada correctamente.';
     }
 }
