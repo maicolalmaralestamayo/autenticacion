@@ -16,7 +16,7 @@ Route::controller(UsuarioController::class)->group(function(){
 
 Route::controller(TokenController::class)->group(function(){
     Route::put('usuarios/login', 'login');
-    Route::delete('usuarios/logout/{token}', 'logout')->middleware('autenticacion');
+    Route::delete('usuarios/logout', 'logout')->middleware('autenticacion');
 });
 
 Route::controller(DatoController::class)->group(function(){

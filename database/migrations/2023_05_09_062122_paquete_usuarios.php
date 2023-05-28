@@ -27,6 +27,7 @@ return new class extends Migration
             $table->foreignId('usuario_id')->constrained()->cascadeOnDelete();
             $table->string('dispositivo', 100);
            
+            $table->string('timezone', 100)->default('America/Havana');
             $table->datetime('created_at');
             $table->datetime('updated_at')->nullable()->default(null);
             $table->datetime('used_at')->nullable()->default(null);

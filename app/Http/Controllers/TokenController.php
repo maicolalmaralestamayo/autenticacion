@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\MaicolHelper;
+use App\Http\Resources\TokenResource;
 use App\Models\Token;
 use App\Models\Usuario;
 use DateTime;
@@ -35,23 +37,24 @@ class TokenController extends Controller
 
     public function login(Request $request){
         //validar usuario y contraseña
-        $usuario = Usuario::where('email', $request->email)->first();
+        $usuario = Usuario::where('email', $request->correo)->first();
         $passwd = Hash::check($request->passwd, $usuario->passwd);
         if (!$usuario || !$passwd) {
-            return 'Usuario y/o contraseña incorrectas.';
+            return MaicolHelper::Data(null, 401, false, 'Usuario y/o contraseña inválidos.');
         }
         
         //cerrar sesión previamente abierta (si existe)
         Token:: where('usuario_id', $usuario->id)->
-                where('dispositivo', $request->dispositivo)->delete();
+                where('dispositivo', $request->terminal)->delete();
         
         //abrir una nueva sesión
         $token = new Token;
         $token->usuario_id = $usuario->id;
-        $token->dispositivo = Str::lower($request->dispositivo);
-        $token->validez_ini = $request->validez_ini? : env('VALIDEZ_INI', '+1 min');
-        $token->validez_inter = $request->validez_inter? : env('VALIDEZ_INTER', '+30 min');
-        $token->validez_fin = $request->validez_fin? : env('VALIDEZ_FIN', '+1 day');
+        $token->dispositivo = Str::lower($request->terminal);
+        $token->timezone = $request->zona_horaria? : 'America/Havana';
+        $token->validez_ini = $request->inicio? : env('VALIDEZ_INI', '+1 min');
+        $token->validez_inter = $request->intermedio? : env('VALIDEZ_INTER', '+30 min');
+        $token->validez_fin = $request->fin? : env('VALIDEZ_FIN', '+1 day');
         $token->save();
 
         //conformar el token
@@ -65,10 +68,10 @@ class TokenController extends Controller
         $token->save();
         
         //devolver el token ya conformado
-        return $token->token;
+        return MaicolHelper::Data(new TokenResource($token), 201, true, 'Inicio de sesión satisfactorio.');
     }
 
-    public function checkLogin(Request $request, &$message){
+    public function checkLogin(Request $request,&$code, &$message){
         //procesar token
         $tokenFormateado = str_replace('Bearer ', '',$request->header('Authorization'));
 
@@ -87,6 +90,7 @@ class TokenController extends Controller
         $signatureToken = hash_hmac($alg, $unsignedToken, $secretKeyApk);
         
         if ($signatureTokenRequest != $signatureToken) {
+            $code = 400;
             $message = 'Petición inválida.';
             return false;
         }
@@ -94,6 +98,7 @@ class TokenController extends Controller
         // verificar la existencia del token en la BD
         $tokenBD = Token::where('token', $tokenFormateado)->first();
         if (!$tokenBD) {
+            $code = 409;
             $message = 'Sesión inválida.';
             return false;
         }
@@ -105,6 +110,7 @@ class TokenController extends Controller
         $validezIni = new DateTime($tokenBD->created_at);
         $validezIni->modify($tokenBD->validez_ini);
         if ($now < $validezIni) {
+            $code = 425;
             $message = 'Inicie sesión en otro momento.';
             return false;
         }
@@ -113,6 +119,7 @@ class TokenController extends Controller
         $validezInter = $tokenBD->used_at? new DateTime($tokenBD->used_at) : new DateTime($now);      
         $validezInter->modify($tokenBD->validez_inter);
         if ($now > $validezInter) {
+            $code = 410;
             $tokenBD->delete();
             $message = 'Por seguridad cerramos su sesión después de varios minutos sin utilizar la aplicación.';
             return false;
@@ -123,6 +130,7 @@ class TokenController extends Controller
         $validezFin->modify($tokenBD->validez_fin);
         if ($now > $validezFin) {
             $tokenBD->delete();
+            $code = 410;
             $message = 'Por seguridad cerramos su sesión despúes de varias horas.';
             return false;
         }
@@ -130,12 +138,13 @@ class TokenController extends Controller
         //si llegó la ejecución hasta aquí es que todo está OK. 
         $tokenBD->used_at = $now;//Se actualiza la última vez que se utilizó el token
         $tokenBD->save();
-
         return true;
     }
 
-    public function logout(Token $token){
+    public function logout(Request $request){
+        $tokenFormateado = str_replace('Bearer ', '',$request->header('Authorization'));
+        $token = Token::where('token', $tokenFormateado)->first();
         $token->delete();
-        return 'Sesión cerrada correctamente.';
+        return MaicolHelper::Data(null, 200, true, 'Sesión cerrada satisfactoriamente.');
     }
 }

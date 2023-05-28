@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Helpers\MaicolHelper;
 use App\Http\Controllers\TokenController;
 use Closure;
 use Illuminate\Http\Request;
@@ -11,10 +12,6 @@ class AutenticacionMiddleware
     public function handle(Request $request, Closure $next)
     {   
         $token = new TokenController;
-        if ($token->checkLogin($request, $message)) {
-            return $next($request);
-        } else {
-            return Response($message);
-        } 
+        return $token->checkLogin($request, $code, $message)? $next($request) : MaicolHelper::Encap(null, $code, false, $message);
     }
 }
