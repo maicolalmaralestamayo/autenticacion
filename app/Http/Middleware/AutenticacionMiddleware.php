@@ -12,6 +12,6 @@ class AutenticacionMiddleware
     public function handle(Request $request, Closure $next)
     {   
         $token = new TokenController;
-        return $token->checkLogin($request, $code, $message)? $next($request) : MaicolHelper::Encap(null, $code, false, $message);
+        return $token->checkLogin($request, $code, $message)? $next($request) : MaicolHelper::Data(null, $code, false, $message);
     }
 }
