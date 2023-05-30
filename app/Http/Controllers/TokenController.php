@@ -99,7 +99,7 @@ class TokenController extends Controller
         $tokenBD = Token::where('token', $tokenFormateado)->first();
         if (!$tokenBD) {
             $code = 409;
-            $message = 'Sesión inválida.';
+            $message = 'Sesión inválida. Debe autenticarse primero.';
             return false;
         }
 
@@ -143,8 +143,7 @@ class TokenController extends Controller
 
     public function logout(Request $request){
         $tokenFormateado = str_replace('Bearer ', '',$request->header('Authorization'));
-        $token = Token::where('token', $tokenFormateado)->first();
-        $token->delete();
+        Token::where('token', $tokenFormateado)->delete();
         return MaicolHelper::Data(null, 200, true, 'Sesión cerrada satisfactoriamente.');
     }
 }
