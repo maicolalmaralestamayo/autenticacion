@@ -18,7 +18,8 @@ return new class extends Migration
             $table->string('email', 50)->unique();
             $table->string('carne', 11)->unique();
             $table->string('passwd');
-            $table->timestamps();
+            $table->datetime('created_at');
+            $table->datetime('updated_at')->nullable()->default(null);
             $table->index(['email', 'nick', 'carne']);
         });
 
@@ -42,10 +43,34 @@ return new class extends Migration
             $table->index(['usuario_id', 'dispositivo']);
         });
 
+        Schema::create('rols', function (Blueprint $table) {
+            $table->id();
+            $table->string('nombre', 50)->unique();
+            $table->string('descripcion', 100)->nullable();
+            $table->index('nombre');
+            $table->datetime('created_at');
+            $table->datetime('updated_at')->nullable()->default(null);
+        });
+
+        Schema::create('permiso_rol', function (Blueprint $table) {
+            $table->unsignedBigInteger('rol_id');
+            $table->unsignedBigInteger('permiso_id');
+        });
+
+        Schema::create('permisos', function (Blueprint $table) {
+            $table->id();
+            $table->string('nombre', 50)->unique();
+            $table->string('descripcion', 100)->nullable();
+            $table->index('nombre');
+            $table->datetime('created_at');
+            $table->datetime('updated_at')->nullable()->default(null);
+        });
+
         Schema::create('datos', function (Blueprint $table) {
             $table->id();
             $table->string('dato');
-            $table->timestamps();
+            $table->datetime('created_at');
+            $table->datetime('updated_at')->nullable()->default(null);
         });
     }
 
@@ -54,5 +79,9 @@ return new class extends Migration
         Schema::dropIfExists('usuarios');
         Schema::dropIfExists('tokens');
         Schema::dropIfExists('datos');
+
+        Schema::dropIfExists('rols');
+        Schema::dropIfExists('permisos');
+        Schema::dropIfExists('rol_permiso');
     }
 };

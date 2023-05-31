@@ -25,13 +25,13 @@ class Handler extends ExceptionHandler
         });
     }
 
-    public function render($request, Throwable $exception)
-    {   
-        if ($exception) {
-            return MaicolHelper::Data(null, 500, false, $exception->getMessage());
-        }
+    // public function render($request, Throwable $exception)
+    // {   
+    //     if ($exception) {
+    //         return MaicolHelper::Data(null, 500, false, $exception->getMessage());
+    //     }
         
-        return false;
-    }
+    //     return false;
+    // }
 
 }
