@@ -6,6 +6,7 @@ use App\Http\Resources\MaicolCollection;
 use DateTime;
 use DateTimeZone;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class MaicolHelper {
@@ -32,6 +33,13 @@ class MaicolHelper {
 
         //para valores múltiples (collecciones sin pasar por recurso), arreglos 
         // $data = new MaicolCollection($data);
+        return $data;
+        if (!$data instanceof JsonResource) {
+            // if (!is_array($data)) {
+            //     $data = [$data];
+            // }
+            $data = new MaicolCollection($data);
+        }
         
         return $data->additional([
             'state' => true,

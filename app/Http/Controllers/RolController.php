@@ -14,15 +14,19 @@ class RolController extends Controller
 {
     public function index(){
         //valores simples
-        $rol = new RolResource(Rol::first()) ; //un recurso
+        $roles = Rol::all(); //un recurso
+        $roles_pag = Rol::paginate(2);  //colleccion
+        $rol = Rol::first();  //colleccion
+
+        $roles_res = RolResource::collection(Rol::all()); //un recurso
+        $roles_pag_res = RolResource::collection(Rol::paginate(2));  //colleccion
+        $rol_res = new RolResource(Rol::first());  //colleccion
+        
         $numero = 3;
         $texto = 'texto';
         $arreglo_simple = ['nombre' => 'maicol', 'apellido' => 'almarales'];
-
-        //valores múltiples sin pasar por el recurso
-        $roles = Rol::paginate(2);  //colleccion
         $arreglo_mult = [['nombre' => 'maicol', 'apellido' => 'almarales'], ['nombre' => 'marlon', 'apellido' => 'tamayo']];
         
-        return MaicolHelper::prueba([$arreglo_simple]);
+        return MaicolHelper::prueba($rol);
     }
 }
