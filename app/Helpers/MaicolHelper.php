@@ -7,48 +7,49 @@ use DateTime;
 use DateTimeZone;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class MaicolHelper {
     
-    public static function Data(JsonResource $data=null, int $code=200, $state=true, $message='Operación realizada satisfactoriamente.'){
-        
-        if ($data ==null || !$data) {
-            $data = new MaicolCollection([]);
+    public static function Data($data=null, int $code=200, $state=true, $message='Operación realizada satisfactoriamente.'){
+        if ($data instanceof Model || $data instanceof Collection || is_array($data) || $data == null) {
+            $data = collect($data);
+            $data = new MaicolCollection($data);
         }
-        
+
+        if ($data instanceof LengthAwarePaginator) {
+            $data = new MaicolCollection($data);
+        }
+
         return $data->additional([
             'state' => $state,
             'code' => $code,
             'message' => $message])
         ->response()->setStatusCode($code);
 
-    //luego en el controlador siempre hay que pasar un Resource SIEMPRE. Para valores fuera de recursos, hay que conertilos utilizando el MaicolResource y pasando como parámetro un arreglo [] con el o los valores
-    // return MaicolHelper::Data(new MaicolCollection([$token->token]),true, 201, null);
-    }
+        // if ($data instanceof LengthAwarePaginator) {
+        //     return 'es un modelo';
+        // }
 
-    public static function prueba($data){
-        //para valores simples (cadenas de texto, números), nulos, un elemento de una colleción (ej. first)
-        // $data = new MaicolCollection([$data]);
+        // if ($data instanceof Model) {
+        //     return 'es un modelo';
+        // }
 
-        //para valores múltiples (collecciones sin pasar por recurso), arreglos 
-        // $data = new MaicolCollection($data);
-        return $data;
-        if (!$data instanceof JsonResource) {
-            // if (!is_array($data)) {
-            //     $data = [$data];
-            // }
-            $data = new MaicolCollection($data);
-        }
+        // if ($data instanceof Collection) {
+        //     return 'es una colección';
+        // }
+
+        // if ($data instanceof ResourceCollection) {
+        //     return 'es un resource collection';
+        // }
+
+        // if ($data instanceof JsonResource) {
+        //     return 'es un resource';
+        // }
         
-        return $data->additional([
-            'state' => true,
-            'code' => 200,
-            'message' => 'mensaje'])
-        ->response()->setStatusCode(200);
-
-    //luego en el controlador siempre hay que pasar un Resource SIEMPRE. Para valores fuera de recursos, hay que conertilos utilizando el MaicolResource y pasando como parámetro un arreglo [] con el o los valores
-    // return MaicolHelper::Data(new MaicolCollection([$token->token]),true, 201, null);
+        // if (is_array($data)) {
+        //     return 'es un arreglo';
+        // }
     }
 
     public static function TimeZone(string $dateTime, string $timeZoneTo='America/Havana', string $timeZoneFrom='UTC', string $format='Y-m-d H:i:s'){

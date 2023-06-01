@@ -4,29 +4,24 @@ namespace App\Http\Controllers;
 
 use App\Helpers\MaicolHelper;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\MaicolCollection;
 use App\Http\Resources\RolResource;
 use App\Models\Rol;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Http\Request;
 
 class RolController extends Controller
 {
     public function index(){
-        //valores simples
-        $roles = Rol::all(); //un recurso
-        $roles_pag = Rol::paginate(2);  //colleccion
-        $rol = Rol::first();  //colleccion
+        $rol = Rol::first();//Model
+        $roles = Rol::all();//Collection
+        $roles_pag = Rol::paginate(2);//LengthAwarePaginator
+        
 
-        $roles_res = RolResource::collection(Rol::all()); //un recurso
-        $roles_pag_res = RolResource::collection(Rol::paginate(2));  //colleccion
-        $rol_res = new RolResource(Rol::first());  //colleccion
+        $rol_res = new RolResource(Rol::first());//JsonResource
+        $roles_res = RolResource::collection(Rol::all());//JsonResource + ResourceCollection
+        $roles_pag_res = RolResource::collection(Rol::paginate(2));//JsonResource + ResourceCollection
         
-        $numero = 3;
-        $texto = 'texto';
-        $arreglo_simple = ['nombre' => 'maicol', 'apellido' => 'almarales'];
-        $arreglo_mult = [['nombre' => 'maicol', 'apellido' => 'almarales'], ['nombre' => 'marlon', 'apellido' => 'tamayo']];
+        $arreglo_simple = ['nombre' => 'maicol', 'apellido' => 'almarales'];//arreglo de un elemento
+        $arreglo_mult = [['nombre' => 'maicol', 'apellido' => 'almarales'], ['nombre' => 'marlon', 'apellido' => 'tamayo']];//arreglo de varios elementos
         
-        return MaicolHelper::prueba($rol);
+        return MaicolHelper::Data(null);
     }
 }
