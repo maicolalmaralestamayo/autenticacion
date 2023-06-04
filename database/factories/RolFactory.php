@@ -12,7 +12,7 @@ class RolFactory extends Factory
     {
         return [
             'nombre'=>  Str::lower($this->faker->word()),
-            'descripcion'=> Str::lower($this->faker->sentence())
+            'descripcion'=> Str::lower($this->faker->word())
         ];
     }
 }

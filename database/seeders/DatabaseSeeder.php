@@ -13,6 +13,6 @@ class DatabaseSeeder extends Seeder
     {
         // Usuario::factory()->create();
         Dato::factory(3)->create();
-        Rol::factory(3)->create();
+        Rol::factory(100)->create();
     }
 }

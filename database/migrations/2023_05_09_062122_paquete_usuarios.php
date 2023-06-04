@@ -46,10 +46,11 @@ return new class extends Migration
         Schema::create('rols', function (Blueprint $table) {
             $table->id();
             $table->string('nombre', 50)->unique();
-            $table->string('descripcion', 100)->nullable();
-            $table->index('nombre');
+            $table->string('descripcion', 100)->nullable()->default(null);
             $table->datetime('created_at');
             $table->datetime('updated_at')->nullable()->default(null);
+            
+            $table->index('nombre');
         });
 
         Schema::create('permiso_rol', function (Blueprint $table) {
@@ -60,7 +61,7 @@ return new class extends Migration
         Schema::create('permisos', function (Blueprint $table) {
             $table->id();
             $table->string('nombre', 50)->unique();
-            $table->string('descripcion', 100)->nullable();
+            $table->string('descripcion', 100)->nullable()->default(null);
             $table->index('nombre');
             $table->datetime('created_at');
             $table->datetime('updated_at')->nullable()->default(null);
