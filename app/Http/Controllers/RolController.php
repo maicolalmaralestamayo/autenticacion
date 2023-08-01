@@ -78,11 +78,15 @@ class RolController extends Controller
         return MaicolHelper::Data($recurso, 200, true, 'Rol eliminado satisfactoriamente.');
     }
 
-    public function actualizar(Request $request){
-        $modelo = Rol::all();
+    public function buscar(Request $request, $modelo){
         foreach ($request->buscar as $key => $value) {
             $modelo = $modelo->where($key, $value);
         }
+        return $modelo;
+    }
+    
+    public function actualizar(Request $request){
+        $modelo = $this->buscar($request, Rol::all());
 
         if ($modelo->isEmpty()) {
             return MaicolHelper::Data(null, 404, false, 'No se encontraron datos (Función index_show_request).');
