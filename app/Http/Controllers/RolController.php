@@ -80,7 +80,6 @@ class RolController extends Controller
 
     public function actualizar(Request $request){
         $modelo = Rol::all();
-
         foreach ($request->buscar as $key => $value) {
             $modelo = $modelo->where($key, $value);
         }
@@ -88,16 +87,10 @@ class RolController extends Controller
         if ($modelo->isEmpty()) {
             return MaicolHelper::Data(null, 404, false, 'No se encontraron datos (Función index_show_request).');
         } else {
-            $modelo = $modelo->toQuery()->paginate($request->cant? : 0);
-            $recurso = RolResource::collection($modelo);
+            $modelo->toQuery()->update($request->actualizar);
+            
+            $recurso = RolResource::collection($modelo->toQuery()->paginate($request->meta['cant']? : 0));
             return MaicolHelper::Data($recurso, 200, true, 'Operación realizada satisfactoriamente.');
         }
-
-        // $modelo = Rol::find($request->identificador);
-        // $modelo->nombre = $request->nomb;
-        // $modelo->descripcion = $request->descrip;
-        // $modelo->update();
-        // $recurso = new RolResource($modelo);
-        // return MaicolHelper::Data($recurso, 200, true, 'Rol actualizado satisfactoriamente.');
     }
 }
