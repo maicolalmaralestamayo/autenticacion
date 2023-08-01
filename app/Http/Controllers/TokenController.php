@@ -71,7 +71,7 @@ class TokenController extends Controller
         return MaicolHelper::Data(new TokenResource($token), 201, true, 'Inicio de sesión satisfactorio.');
     }
 
-    public function checkLogin(Request $request,&$code, &$message){
+    public function checkLogin(Request $request, &$code, &$message){
         //procesar token
         $tokenFormateado = str_replace('Bearer ', '',$request->header('Authorization'));
 
@@ -103,7 +103,7 @@ class TokenController extends Controller
             return false;
         }
 
-        //realizar verificaciones de tiempo
+        ///realizar verificaciones de tiempo
         $now = now();
 
         //si el token tiene validez inicial (con respecto a la fecha de creación)

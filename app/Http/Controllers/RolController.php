@@ -28,7 +28,7 @@ class RolController extends Controller
         } else {
             $modelo = $modelo->toQuery()->paginate($request->cant? : 0);
             $recurso = RolResource::collection($modelo);
-            return MaicolHelper::Data($recurso);
+            return MaicolHelper::Data($recurso, 200, true, 'Operación realizada satisfactoriamente.');
         }
     }
 
@@ -62,10 +62,42 @@ class RolController extends Controller
         return MaicolHelper::Data($recurso, 200, true, 'Rol actualizado satisfactoriamente.');
     }
 
+    public function update_several(Request $request){
+        $modelo = Rol::find($request->identificador);
+        $modelo->nombre = $request->nomb;
+        $modelo->descripcion = $request->descrip;
+        $modelo->update();
+        $recurso = new RolResource($modelo);
+        return MaicolHelper::Data($recurso, 200, true, 'Rol actualizado satisfactoriamente.');
+    }
+
     public function destroy(Request $request){
         $modelo = Rol::find($request->identificador);
         $modelo->delete();
         $recurso = new RolResource($modelo);
         return MaicolHelper::Data($recurso, 200, true, 'Rol eliminado satisfactoriamente.');
+    }
+
+    public function actualizar(Request $request){
+        $modelo = Rol::all();
+        
+        foreach ($request->buscar as $key => $value) {
+            $modelo = $modelo->where($key, $value);
+        }
+
+        if ($modelo->isEmpty()) {
+            return MaicolHelper::Data(null, 404, false, 'No se encontraron datos (Función index_show_request).');
+        } else {
+            $modelo = $modelo->toQuery()->paginate($request->cant? : 0);
+            $recurso = RolResource::collection($modelo);
+            return MaicolHelper::Data($recurso, 200, true, 'Operación realizada satisfactoriamente.');
+        }
+
+        // $modelo = Rol::find($request->identificador);
+        // $modelo->nombre = $request->nomb;
+        // $modelo->descripcion = $request->descrip;
+        // $modelo->update();
+        // $recurso = new RolResource($modelo);
+        // return MaicolHelper::Data($recurso, 200, true, 'Rol actualizado satisfactoriamente.');
     }
 }

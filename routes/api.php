@@ -31,5 +31,7 @@ Route::controller(RolController::class)->group(function(){
     Route::post('roles/several', 'store_several');
     
     Route::put('roles', 'update');
+    Route::put('roles/actualizar', 'actualizar');
+
     Route::delete('roles', 'destroy');
 });
