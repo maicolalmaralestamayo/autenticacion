@@ -80,7 +80,7 @@ class RolController extends Controller
 
     public function actualizar(Request $request){
         $modelo = Rol::all();
-        
+
         foreach ($request->buscar as $key => $value) {
             $modelo = $modelo->where($key, $value);
         }
