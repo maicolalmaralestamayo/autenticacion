@@ -11,24 +11,22 @@ use Illuminate\Http\Request;
 class RolController extends Controller
 {
     public function index_show_request(Request $request){
-        $modelo = Rol::all();
-
-        if ($request->identificador) {
-            $modelo = $modelo->where('id', $request->identificador);
+        return $request;
+        
+        if ($request->buscar != null) {
+            $modelo = MaicolHelper::Buscar($request->buscar, Rol::all());
+        } else {
+            $modelo = 'maicol';
         }
-        if ($request->nomb) {
-            $modelo = $modelo->where('nombre', $request->nomb);
-        }
-        if ($request->descrip) {
-            $modelo = $modelo->where('descripcion', $request->descrip);
-        }
+        
+        return $modelo;
 
         if ($modelo->isEmpty()) {
-            return MaicolHelper::Data(null, 404, false, 'No se encontraron datos (Función index_show_request).');
+            return MaicolHelper::Data(null, 404, false, 'No se encontraron datos.');
         } else {
             $modelo = $modelo->toQuery()->paginate($request->cant? : 0);
             $recurso = RolResource::collection($modelo);
-            return MaicolHelper::Data($recurso, 200, true, 'Operación realizada satisfactoriamente.');
+            return MaicolHelper::Data($recurso, 200, true, 'Consulta satisfactoria.');
         }
     }
 
@@ -43,7 +41,7 @@ class RolController extends Controller
     }
     
     public function update(Request $request){
-        $modelo = MaicolHelper::Buscar($request, Rol::all());
+        $modelo = MaicolHelper::Buscar($request->buscar, Rol::all());
 
         if ($modelo->isEmpty()) {
             return MaicolHelper::Data(null, 404, false, 'No se encontraron datos para actualizar.');
@@ -55,7 +53,7 @@ class RolController extends Controller
     }
 
     public function delete(Request $request){
-        $modelo = MaicolHelper::Buscar($request, Rol::all());
+        $modelo = MaicolHelper::Buscar($request->buscar, Rol::all());
 
         if ($modelo->isEmpty()) {
             return MaicolHelper::Data(null, 404, false, 'No se encontraron datos para eliminar.');
