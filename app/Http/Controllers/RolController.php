@@ -32,37 +32,14 @@ class RolController extends Controller
         }
     }
 
-    public function store(Request $request){
-        $modelo = new Rol();
-        $modelo->nombre = $request->nomb;
-        $modelo->descripcion = $request->descrip? : null;
-        $modelo->save();
-
-        $recurso = new RolResource($modelo);
-        return MaicolHelper::Data($recurso, 200, true, 'Rol creado satisfactoriamente.');
-    }
-
-    // public function store_several(Request $request){
-    //     $arreglo = $request->toArray();
-    //     foreach ($arreglo as $value) {
-    //         $modelo = new Rol();
-    //         $modelo->nombre = $value['nomb'];
-    //         $modelo->descripcion = key_exists('descrip', $value)? $value['nomb'] : null;
-    //         $modelo->save();
-    //     }
-    //     return MaicolHelper::Data(null, 200, true, 'Roles creados satisfactoriamente.');
-    // }
-
     public function crear(Request $request){
+        $id = [];
         foreach ($request->crear as $key => $value) {
-            // return $value;
             $modelo = Rol::create($value);
-            
-            // $modelo = $value;
-            // $modelo->nombre = $value['nomb'];
-            // $modelo->descripcion = key_exists('descrip', $value)? $value['nomb'] : null;
-            // $modelo->save();
+            array_push($id, $modelo->id);
         }
+        $recurso = RolResource::collection($modelo->orWhere('id', $id)->paginate($request->meta['cant']? : 0));
+        return MaicolHelper::Data($recurso, 200, true, 'Creación satisfactoria.');
     }
     
     public function update(Request $request){
@@ -72,8 +49,6 @@ class RolController extends Controller
             return MaicolHelper::Data(null, 404, false, 'No se encontraron datos para actualizar.');
         } else {
             $modelo->toQuery()->update($request->actualizar);
-            // $modelo->toQuery()->update(["nombre" => $request->actualizar['nomb'], 
-            //                            ["descripcion" => $request->actualizar['descrip']]]); //actualizar haciendo cambio de nombre de tabla
             $recurso = RolResource::collection($modelo->toQuery()->paginate($request->meta['cant']? : 0));
             return MaicolHelper::Data($recurso, 200, true, 'Actualización satisfactoria.');
         }
