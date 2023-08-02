@@ -42,59 +42,52 @@ class RolController extends Controller
         return MaicolHelper::Data($recurso, 200, true, 'Rol creado satisfactoriamente.');
     }
 
-    public function store_several(Request $request){
-        $arreglo = $request->toArray();
-        foreach ($arreglo as $value) {
-            $modelo = new Rol();
-            $modelo->nombre = $value['nomb'];
-            $modelo->descripcion = key_exists('descrip', $value)? $value['nomb'] : null;
-            $modelo->save();
+    // public function store_several(Request $request){
+    //     $arreglo = $request->toArray();
+    //     foreach ($arreglo as $value) {
+    //         $modelo = new Rol();
+    //         $modelo->nombre = $value['nomb'];
+    //         $modelo->descripcion = key_exists('descrip', $value)? $value['nomb'] : null;
+    //         $modelo->save();
+    //     }
+    //     return MaicolHelper::Data(null, 200, true, 'Roles creados satisfactoriamente.');
+    // }
+
+    public function crear(Request $request){
+        foreach ($request->crear as $key => $value) {
+            // return $value;
+            $modelo = Rol::create($value);
+            
+            // $modelo = $value;
+            // $modelo->nombre = $value['nomb'];
+            // $modelo->descripcion = key_exists('descrip', $value)? $value['nomb'] : null;
+            // $modelo->save();
         }
-        return MaicolHelper::Data(null, 200, true, 'Roles creados satisfactoriamente.');
-    }
-
-    public function update(Request $request){
-        $modelo = Rol::find($request->identificador);
-        $modelo->nombre = $request->nomb;
-        $modelo->descripcion = $request->descrip;
-        $modelo->update();
-        $recurso = new RolResource($modelo);
-        return MaicolHelper::Data($recurso, 200, true, 'Rol actualizado satisfactoriamente.');
-    }
-
-    public function update_several(Request $request){
-        $modelo = Rol::find($request->identificador);
-        $modelo->nombre = $request->nomb;
-        $modelo->descripcion = $request->descrip;
-        $modelo->update();
-        $recurso = new RolResource($modelo);
-        return MaicolHelper::Data($recurso, 200, true, 'Rol actualizado satisfactoriamente.');
-    }
-
-    public function destroy(Request $request){
-        $modelo = Rol::find($request->identificador);
-        $modelo->delete();
-        $recurso = new RolResource($modelo);
-        return MaicolHelper::Data($recurso, 200, true, 'Rol eliminado satisfactoriamente.');
-    }
-
-    public function buscar(Request $request, $modelo){
-        foreach ($request->buscar as $key => $value) {
-            $modelo = $modelo->where($key, $value);
-        }
-        return $modelo;
     }
     
-    public function actualizar(Request $request){
-        $modelo = $this->buscar($request, Rol::all());
+    public function update(Request $request){
+        $modelo = MaicolHelper::Buscar($request, Rol::all());
 
         if ($modelo->isEmpty()) {
-            return MaicolHelper::Data(null, 404, false, 'No se encontraron datos (Función index_show_request).');
+            return MaicolHelper::Data(null, 404, false, 'No se encontraron datos para actualizar.');
         } else {
             $modelo->toQuery()->update($request->actualizar);
-            
+            // $modelo->toQuery()->update(["nombre" => $request->actualizar['nomb'], 
+            //                            ["descripcion" => $request->actualizar['descrip']]]); //actualizar haciendo cambio de nombre de tabla
             $recurso = RolResource::collection($modelo->toQuery()->paginate($request->meta['cant']? : 0));
-            return MaicolHelper::Data($recurso, 200, true, 'Operación realizada satisfactoriamente.');
+            return MaicolHelper::Data($recurso, 200, true, 'Actualización satisfactoria.');
+        }
+    }
+
+    public function delete(Request $request){
+        $modelo = MaicolHelper::Buscar($request, Rol::all());
+
+        if ($modelo->isEmpty()) {
+            return MaicolHelper::Data(null, 404, false, 'No se encontraron datos para eliminar.');
+        } else {
+            $recurso = RolResource::collection($modelo->toQuery()->paginate($request->meta['cant']? : 0));
+            $modelo->toQuery()->delete();
+            return MaicolHelper::Data($recurso, 200, true, 'Eliminación satisfactoria.');
         }
     }
 }

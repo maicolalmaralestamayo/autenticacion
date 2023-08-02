@@ -27,11 +27,10 @@ Route::controller(DatoController::class)->group(function(){
 Route::controller(RolController::class)->group(function(){
     Route::get('roles', 'index_show_request');
 
-    Route::post('roles', 'store');
+    
     Route::post('roles/several', 'store_several');
     
-    Route::put('roles', 'update');
-    Route::put('roles/actualizar', 'actualizar');
-
-    Route::delete('roles', 'destroy');
+    Route::post('roles/crear', 'crear');
+    Route::put('roles/update', 'update');
+    Route::delete('roles/delete', 'delete');
 });

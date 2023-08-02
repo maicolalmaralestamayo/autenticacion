@@ -8,6 +8,7 @@ use DateTimeZone;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Http\Request;
 
 class MaicolHelper {
     
@@ -61,6 +62,13 @@ class MaicolHelper {
         $dateTimeTo->setTimezone($timeZoneTo);
 
         return $dateTimeTo->format($format);
+    }
+
+    public static function Buscar(Request $request, $modelo){
+        foreach ($request->buscar as $key => $value) {
+            $modelo = $modelo->where($key, $value);
+        }
+        return $modelo;
     }
 }
 
