@@ -23,14 +23,17 @@ class RolController extends Controller
     }
 
     public function store(Request $request){
-        $id = [];
-        foreach ($request->store as $key => $value) {
-            $modelo = Rol::create($value);
-            array_push($id, $modelo->id);
+        if ($request->meta['several'] === false) {
+            $cant = 1;
+            $modelo = Rol::create($request['store']);
+        } else {
+            $cant = 0;
+            foreach ($request->store as $value) {
+                $cant++;
+                $modelo = Rol::create($value);
+            }
         }
-        $paginado = $modelo->where('id', $id)->paginate($request->meta['pag']? : 0);
-        $recurso = RolResource::collection($paginado);
-        return MaicolHelper::Data($recurso, 200, true, 'Creación satisfactoria.');
+        return MaicolHelper::Data($modelo, 200, true, 'Creación satisfactoria.  Registros creados: '.$cant);
     }
     
     //OK
