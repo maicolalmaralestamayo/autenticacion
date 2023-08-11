@@ -45,47 +45,23 @@ class RolController extends Controller
         }
     }
 
+    // OK
     public function delete(Request $request){
-        $request->meta['all'] === true ? $modelo = Rol::all() : MaicolHelper::Buscar($request->show, Rol::all());
-        $cant = $modelo->count();
-
-        if ($request->meta['all'] === true) {
-            if ($request->meta['reset'] === true) {
-                $modelo->toQuery()->truncate();
-            }
-        }
-
-        $request->meta['reset'] === true ? $modelo->toQuery()->truncate() : $modelo->delete();
-
-        if ($cant > 0) {
-            $request->meta['reset'] === true ? $modelo->toQuery()->truncate() : $modelo->delete();
-        }
-
-        return MaicolHelper::Data(null, 200, true, 'Eliminación satisfactoria.  Registros eliminados: '.$cant);
-
-        
-        
         if ($request->meta['all'] === true) {
             $modelo = Rol::all();
-            $cant = $modelo->count();
-            if ($cant > 0) {
-                $request->meta['reset'] === true ? $modelo->toQuery()->truncate() : $modelo->delete();
-            }
         } else {
             $modelo = MaicolHelper::Buscar($request->show, Rol::all());
-            $cant = $modelo->count();
-            $modelo->toQuery()->delete();
         }
-        return MaicolHelper::Data(null, 200, true, 'Eliminación satisfactoria.  Registros eliminados: '.$cant);
-    }
+        $cant = $modelo->count();
 
-    public function truncate(Request $request){
-        $cant = Rol::count();
-        if ($request->show['id'] === '*') {
-            Rol::truncate();
-            return MaicolHelper::Data(null, 200, true, 'Eliminación satisfactoria.  Registros eliminados: '.$cant);
-        } else {
-            return MaicolHelper::Data(null, 401, true, 'Introduzca correctamente las llaves "show" : {"id" : "*"}');
+        if ($cant > 0) {
+            if ($request->meta['all'] === true && $request->meta['reset'] === true) {
+                $modelo->toQuery()->truncate();
+            } else {
+                $modelo->toQuery()->delete();
+            }
         }
+        
+        return MaicolHelper::Data(null, 200, true, 'Eliminación satisfactoria.  Registros eliminados: '.$cant);
     }
 }

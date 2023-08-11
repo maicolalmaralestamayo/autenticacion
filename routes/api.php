@@ -29,5 +29,4 @@ Route::controller(RolController::class)->group(function(){
     Route::post('roles/store', 'store');
     Route::put('roles/update', 'update');
     Route::delete('roles/delete', 'delete');
-    Route::delete('roles/truncate', 'truncate');
 });
