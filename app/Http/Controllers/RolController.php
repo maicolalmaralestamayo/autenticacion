@@ -10,27 +10,33 @@ use Illuminate\Http\Request;
 
 class RolController extends Controller
 {
+    //OK
     public function show(Request $request){
-        $modelo = $request->show? MaicolHelper::Buscar($request->show, Rol::all()) : Rol::all();
-        
-        if ($modelo->isEmpty()) {
-            return MaicolHelper::Data(null, 404, false, 'No se encontraron datos para mostrar.');
+        if ($request->meta['all'] === true) {
+            $modelo = Rol::all();
         } else {
-            $paginado = $modelo->toQuery()->paginate($request->meta['pag']? : 0);
-            $recurso = RolResource::collection($paginado);
-            return MaicolHelper::Data($recurso, 200, true, 'Consulta satisfactoria.');
+            $modelo = MaicolHelper::Buscar($request->filter, Rol::all());
+        }
+        $cant = $modelo->count();
+
+        if ($cant > 0) {
+            return MaicolHelper::Data($modelo, 200, true, 'Consulta satisfactoria.');
+        } else {
+            return MaicolHelper::Data(null, 404, false, 'No se encontraron datos para mostrar.');
         }
     }
 
+    //OK
     public function store(Request $request){
         if ($request->meta['several'] === false) {
             $cant = 1;
             $modelo = Rol::create($request['store']);
         } else {
             $cant = 0;
+            $modelo = [];
             foreach ($request->store as $value) {
                 $cant++;
-                $modelo = Rol::create($value);
+                $modelo[] = Rol::create($value);
             }
         }
         return MaicolHelper::Data($modelo, 200, true, 'Creación satisfactoria.  Registros creados: '.$cant);
@@ -38,7 +44,7 @@ class RolController extends Controller
     
     //OK
     public function update(Request $request){
-        if ($request->filter['all'] === true) {
+        if ($request->meta['all'] === true) {
             $modelo = Rol::all();
         } else {
             $modelo = MaicolHelper::Buscar($request->filter, Rol::all());
@@ -55,15 +61,15 @@ class RolController extends Controller
 
     //OK
     public function delete(Request $request){
-        if ($request->filter['all'] === true) {
+        if ($request->meta['all'] === true) {
             $modelo = Rol::all();
         } else {
-            $modelo = MaicolHelper::Buscar($request->show, Rol::all());
+            $modelo = MaicolHelper::Buscar($request->filter, Rol::all());
         }
         $cant = $modelo->count();
 
         if ($cant > 0) {
-            if ($request->filter['all'] === true && $request->meta['reset'] === true) {
+            if ($request->meta['all'] === true && $request->meta['reset'] === true) {
                 $modelo->toQuery()->truncate();
             } else {
                 $modelo->toQuery()->delete();
